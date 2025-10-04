@@ -38,6 +38,7 @@
     | `SOLR_MCP_DEFAULT_COLLECTION` | The default Solr collection to use                 | `gettingstarted`                 |
     | `SOLR_BASIC_USER`             | Basic authentication username for Solr (optional)  | ""                               |
     | `SOLR_BASIC_PASS`             | Basic authentication password for Solr (optional)  | ""                               |
+    | `LOG_LEVEL`                   | The log level to use (DEBUG, INFO, WARN, ERROR)    | `INFO`                           |
     | `LLM_BASE_URL`                | The base URL for the chat completion API           | `http://localhost:8000/v1`       |
     | `LLM_API_KEY`                 | The API key for the LLM API                        | ""                               |
     | `LLM_MODEL`                   | The LLM model name to use                          | `gpt-4o`                         |
