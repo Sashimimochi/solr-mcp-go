@@ -65,8 +65,7 @@ func Prioritize(names []string, prefs []string) []string {
 }
 
 func GetTimezone() string {
-	// 2025-10-02T18:00:00%sの%sにあたる部分を生成する
-	// 例: +09:00, -05:00, Z
+	// RFC3339形式のタイムゾーンオフセット（例: +09:00, -05:00, Z）を生成する
 	_, offset := time.Now().Zone()
 	if offset == 0 {
 		return "Z"
