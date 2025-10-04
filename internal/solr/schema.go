@@ -128,7 +128,7 @@ func GuessFields(fc *types.FieldCatalog) types.GuessedFields {
 		}
 		return ""
 	}
-	gf.Price = findBy(fc.Numbers, "price", "cost", "amount", "fee", "tax", "salary", "budget", "cost", "金額", "価格", "値段", "料金")
+	gf.Price = findBy(fc.Numbers, "price", "cost", "amount", "fee", "tax", "salary", "budget", "金額", "価格", "値段", "料金")
 	gf.Date = findBy(fc.Dates, "date", "time", "timestamp", "created", "updated", "modified", "日付", "日時", "時間", "登録", "更新")
 	gf.Brand = findBy(fc.Texts, "brand", "maker", "manufacturer", "vendor", "supplier", "メーカー", "ブランド", "製造", "販売")
 	gf.Category = findBy(fc.Texts, "category", "type", "genre", "class", "カテゴリ", "分類", "種類", "ジャンル")
