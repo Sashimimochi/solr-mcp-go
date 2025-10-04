@@ -1,41 +1,41 @@
 package client
 
 import (
-    "context"
-    "log"
+	"context"
+	"log/slog"
 
-    "solr-mcp-go/internal/config"
+	"solr-mcp-go/internal/config"
 
-    "github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func Run(url string) {
-    ctx := context.Background()
+	ctx := context.Background()
 
-    log.Printf("Connecting to MCP server at %s", url)
+	slog.Info("Connecting to MCP server", "url", url)
 
-    client := mcp.NewClient(&mcp.Implementation{
-        Name:    "solr-mcp-go-client",
-        Version: config.Version,
-    }, nil)
+	client := mcp.NewClient(&mcp.Implementation{
+		Name:    "solr-mcp-go-client",
+		Version: config.Version,
+	}, nil)
 
-    session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: url}, nil)
-    if err != nil {
-        log.Fatalf("Error connecting to MCP server: %v", err)
-    }
-    defer session.Close()
+	session, err := client.Connect(ctx, &mcp.StreamableClientTransport{Endpoint: url}, nil)
+	if err != nil {
+		slog.Error("Error connecting to MCP server", "error", err)
+	}
+	defer session.Close()
 
-    log.Println("Connected to MCP server", session.ID())
+	slog.Info("Connected to MCP server", "session_id", session.ID())
 
-    log.Println("Listing available tools...")
-    toolsResult, err := session.ListTools(ctx, nil)
-    if err != nil {
-        log.Fatalf("Error listing tools: %v", err)
-    }
+	slog.Info("Listing available tools...")
+	toolsResult, err := session.ListTools(ctx, nil)
+	if err != nil {
+		slog.Error("Error listing tools", "error", err)
+	}
 
-    for _, tool := range toolsResult.Tools {
-        log.Printf(" - %s: %s", tool.Name, tool.Description)
-    }
+	for _, tool := range toolsResult.Tools {
+		slog.Info("tool", "name", tool.Name, "description", tool.Description)
+	}
 
-    log.Println("Client completed successfully.")
+	slog.Info("Client completed successfully.")
 }
