@@ -82,7 +82,7 @@ func GetTimezone() string {
 }
 
 func twoDigitString(n int) string {
-	if n < 10 {
+	if 0 <= n && n < 10 {
 		return "0" + strconv.Itoa(n)
 	}
 	return strconv.Itoa(n)
