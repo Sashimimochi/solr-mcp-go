@@ -46,8 +46,8 @@ func BuildEdismaxParams(plan *types.LlmPlan, fc *types.FieldCatalog, rows, start
 	if len(plan.EdisMax.FacetFields) > 0 {
 		p["facet"] = "true"
 		p["facet.field"] = plan.EdisMax.FacetFields
-		p["facet.limit"] = "10"
-		p["facet.mincount"] = "1"
+		p["facet.limit"] = 10
+		p["facet.mincount"] = 1
 	}
 	if len(plan.EdisMax.Fields) > 0 {
 		p["fl"] = strings.Join(plan.EdisMax.Fields, ",")
