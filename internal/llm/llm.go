@@ -359,7 +359,7 @@ func post(ctx context.Context, httpClient *http.Client, url string, body any, ap
 
 func getFirstChoiceContent(m map[string]any) string {
 	if errVal, ok := m["error"]; ok {
-		slog.Error("LLM API returned an error: %v", errVal)
+		slog.Error("LLM API returned an error", "error", errVal)
 		return ""
 	}
 	choicesVal, ok := m["choices"]
