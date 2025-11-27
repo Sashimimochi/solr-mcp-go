@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
-	"solr-mcp-go/internal/types"
 	"strings"
 	"testing"
 
@@ -94,270 +93,6 @@ func TestQuerySelect(t *testing.T) {
 		_, err := QuerySelect(ctx, client, collection, params)
 		assert.NoError(t, err)
 	})
-}
-
-// TestToRangeFilterQuery は toRangeFilterQuery 関数のテストです。
-// 目的: LlmRangeから正しい範囲フィルタ文字列が生成されることを確認します。
-func TestToRangeFilterQuery(t *testing.T) {
-	from := "10"
-	to := "20"
-	empty := ""
-
-	testCases := []struct {
-		name     string
-		r        types.LlmRange
-		expected string
-	}{
-		{
-			name: "FromとToが両方ある場合",
-			r: types.LlmRange{
-				Field: "price",
-				From:  &from,
-				To:    &to,
-			},
-			expected: "price:[10 TO 20]",
-		},
-		{
-			name: "Fromのみある場合",
-			r: types.LlmRange{
-				Field: "price",
-				From:  &from,
-				To:    nil,
-			},
-			expected: "price:[10 TO *]",
-		},
-		{
-			name: "Toのみある場合",
-			r: types.LlmRange{
-				Field: "price",
-				From:  nil,
-				To:    &to,
-			},
-			expected: "price:[* TO 20]",
-		},
-		{
-			name: "FromとToが両方ない場合",
-			r: types.LlmRange{
-				Field: "price",
-				From:  nil,
-				To:    nil,
-			},
-			expected: "price:[* TO *]",
-		},
-		{
-			name: "FromとToが空文字列の場合",
-			r: types.LlmRange{
-				Field: "price",
-				From:  &empty,
-				To:    &empty,
-			},
-			expected: "price:[* TO *]",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actual := toRangeFilterQuery(tc.r)
-			if actual != tc.expected {
-				t.Errorf("expected %q, but got %q", tc.expected, actual)
-			}
-		})
-	}
-}
-
-// TestBuildEdismaxParams は BuildEdismaxParams 関数のテストです。
-// 目的: LlmPlanとFieldCatalogから正しいeDisMaxクエリパラメータが生成されることを確認します。
-func TestBuildEdismaxParams(t *testing.T) {
-	from := "100"
-	to := "200"
-	plan := &types.LlmPlan{
-		EdisMax: struct {
-			TextQuery   string           `json:"text_query,omitempty"`
-			Filters     []string         `json:"filters,omitempty"`
-			Ranges      []types.LlmRange `json:"ranges,omitempty"`
-			Sort        string           `json:"sort,omitempty"`
-			FacetFields []string         `json:"facet_fields,omitempty"`
-			Params      map[string]any   `json:"params,omitempty"`
-			Fields      []string         `json:"fields,omitempty"`
-		}{
-			TextQuery:   "test query",
-			Filters:     []string{"cat:electronics"},
-			Ranges:      []types.LlmRange{{Field: "price", From: &from, To: &to}},
-			Sort:        "score desc",
-			FacetFields: []string{"manufacturer"},
-			Fields:      []string{"id", "name", "price"},
-			Params:      map[string]any{"bq": "category:books^2"},
-		},
-	}
-	fc := &types.FieldCatalog{
-		Guessed: types.GuessedFields{
-			DefaultDF: "text",
-		},
-	}
-
-	params := BuildEdismaxParams(plan, fc, 10, 0)
-
-	// 基本的なパラメータの確認
-	if params["defType"] != "edismax" {
-		t.Errorf("defType is not edismax")
-	}
-	if params["q"] != "test query" {
-		t.Errorf("q is not 'test query'")
-	}
-	if params["rows"] != 10 {
-		t.Errorf("rows is not 10")
-	}
-	if params["start"] != 0 {
-		t.Errorf("start is not 0")
-	}
-	if params["wt"] != "json" {
-		t.Errorf("wt is not json")
-	}
-
-	// 追加パラメータの確認
-	if params["bq"] != "category:books^2" {
-		t.Errorf("bq is not 'category:books^2'")
-	}
-
-	// dfの確認
-	if params["df"] != "text" {
-		t.Errorf("df is not 'text'")
-	}
-
-	// fqの確認
-	expectedFq := []string{"cat:electronics", "price:[100 TO 200]"}
-	if !reflect.DeepEqual(params["fq"], expectedFq) {
-		t.Errorf("fq is not correct, expected %v, got %v", expectedFq, params["fq"])
-	}
-
-	// sortの確認
-	if params["sort"] != "score desc" {
-		t.Errorf("sort is not 'score desc'")
-	}
-
-	// facetの確認
-	if params["facet"] != "true" {
-		t.Errorf("facet is not 'true'")
-	}
-	if !reflect.DeepEqual(params["facet.field"], []string{"manufacturer"}) {
-		t.Errorf("facet.field is not correct")
-	}
-
-	// flの確認
-	if params["fl"] != "id,name,price" {
-		t.Errorf("fl is not 'id,name,price'")
-	}
-}
-
-// TestBuildKNNJSON は BuildKNNJSON 関数のテストです。
-// 目的: LlmPlan, FieldCatalog, embeddingから正しいKNNクエリのJSONボディが生成されることを確認します。
-func TestBuildKNNJSON(t *testing.T) {
-	plan := &types.LlmPlan{
-		Mode: "hybrid",
-		EdisMax: struct {
-			TextQuery   string           `json:"text_query,omitempty"`
-			Filters     []string         `json:"filters,omitempty"`
-			Ranges      []types.LlmRange `json:"ranges,omitempty"`
-			Sort        string           `json:"sort,omitempty"`
-			FacetFields []string         `json:"facet_fields,omitempty"`
-			Params      map[string]any   `json:"params,omitempty"`
-			Fields      []string         `json:"fields,omitempty"`
-		}{
-			TextQuery:   "hybrid search",
-			Filters:     []string{"inStock:true"},
-			FacetFields: []string{"category"},
-			Fields:      []string{"id", "name"},
-			Params:      map[string]any{"qf": "text_en"},
-		},
-		Vector: struct {
-			Field     string `json:"field,omitempty"`
-			K         int    `json:"k,omitempty"`
-			QueryText string `json:"query_text,omitempty"`
-		}{
-			Field: "vector_field",
-			K:     50,
-		},
-	}
-	fc := &types.FieldCatalog{
-		Guessed: types.GuessedFields{
-			DefaultDF: "text_all",
-		},
-	}
-	embedding := []float64{0.1, 0.2, 0.3}
-
-	jsonBody := BuildKNNJSON(plan, fc, embedding, 20, 5)
-
-	// KNN仕様の確認
-	knnSpecs, ok := jsonBody["knn"].([]interface{})
-	if !ok {
-		t.Fatal("knn is not a []interface{}")
-	}
-	if len(knnSpecs) != 1 {
-		t.Fatalf("expected 1 knn spec, got %d", len(knnSpecs))
-	}
-	knnSpecMap, ok := knnSpecs[0].(map[string]interface{})
-	if !ok {
-		t.Fatal("knn spec is not a map[string]interface{}")
-	}
-
-	if knnSpecMap["field"] != "vector_field" {
-		t.Errorf("knn field is not 'vector_field'")
-	}
-
-	// Vectorの比較
-	vec, ok := knnSpecMap["vector"].([]interface{})
-	if !ok {
-		t.Fatal("vector is not []interface{}")
-	}
-	actualVector := make([]float64, len(vec))
-	for i, v := range vec {
-		actualVector[i], _ = v.(float64)
-	}
-	if !reflect.DeepEqual(actualVector, embedding) {
-		t.Errorf("knn vector is not correct")
-	}
-
-	// Kの比較（JSONの数値はfloat64になる）
-	if knnSpecMap["k"].(float64) != 50 {
-		t.Errorf("knn K is not 50")
-	}
-
-	// 基本的なパラメータの確認
-	if jsonBody["limit"].(float64) != 20 {
-		t.Errorf("limit is not 20")
-	}
-	if jsonBody["offset"].(float64) != 5 {
-		t.Errorf("offset is not 5")
-	}
-
-	// フィルターの確認
-	expectedFilter := []interface{}{"inStock:true"}
-	actualFilter, _ := jsonBody["filter"].([]interface{})
-	if !reflect.DeepEqual(actualFilter, expectedFilter) {
-		t.Errorf("filter is not correct, expected %v, got %v", expectedFilter, actualFilter)
-	}
-
-	// クエリの確認
-	expectedQuery := "{!edismax qf=text_en df=text_all}hybrid search"
-	if jsonBody["query"] != expectedQuery {
-		t.Errorf("query is not correct, expected %q, got %q", expectedQuery, jsonBody["query"])
-	}
-
-	// フィールドの確認
-	expectedFields := []interface{}{"id", "name"}
-	actualFields, _ := jsonBody["fields"].([]interface{})
-	if !reflect.DeepEqual(actualFields, expectedFields) {
-		t.Errorf("fields are not correct, expected %v, got %v", expectedFields, actualFields)
-	}
-
-	// ファセットの確認
-	facet, ok := jsonBody["facet"].(map[string]any)
-	if !ok {
-		t.Fatal("facet is not a map[string]any")
-	}
-	if _, ok := facet["facet_category"]; !ok {
-		t.Errorf("facet_category is not set")
-	}
 }
 
 // TestAddFieldsForIDs は AddFieldsForIDs 関数のテストです。
@@ -640,4 +375,437 @@ func TestPostQueryJSON_Error(t *testing.T) {
 	if !strings.Contains(err.Error(), expectedError) {
 		t.Errorf("Expected error to contain %q, but got %q", expectedError, err.Error())
 	}
+}
+
+// TestPostQueryJSON_InvalidJSON は PostQueryJSON 関数のJSONデコードエラーのテストです。
+// 目的: レスポンスが不正なJSONの場合にエラーが返されることを確認します。
+func TestPostQueryJSON_InvalidJSON(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"invalid json`))
+	}))
+	defer server.Close()
+
+	client := &http.Client{}
+	body := map[string]any{"query": "*:*"}
+	_, err := PostQueryJSON(context.Background(), client, server.URL, "", "", "testcollection", body)
+
+	if err == nil {
+		t.Fatal("Expected an error, but got nil")
+	}
+	if !strings.Contains(err.Error(), "JSON decode error") {
+		t.Errorf("Expected JSON decode error, but got: %v", err)
+	}
+}
+
+// TestPostQueryJSON_NetworkError は PostQueryJSON 関数のネットワークエラーのテストです。
+// 目的: HTTPリクエストが失敗した場合にエラーが返されることを確認します。
+func TestPostQueryJSON_NetworkError(t *testing.T) {
+	client := &http.Client{}
+	body := map[string]any{"query": "*:*"}
+	_, err := PostQueryJSON(context.Background(), client, "http://invalid-host-that-does-not-exist:9999", "", "", "testcollection", body)
+
+	if err == nil {
+		t.Fatal("Expected an error, but got nil")
+	}
+	if !strings.Contains(err.Error(), "HTTP request error") {
+		t.Errorf("Expected HTTP request error, but got: %v", err)
+	}
+}
+
+// TestPostQueryJSON_NoAuth は PostQueryJSON 関数の認証なしのテストです。
+// 目的: User/Passが空の場合、Basic認証が設定されないことを確認します。
+func TestPostQueryJSON_NoAuth(t *testing.T) {
+	authHeaderReceived := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "" {
+			authHeaderReceived = true
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+	}))
+	defer server.Close()
+
+	client := &http.Client{}
+	body := map[string]any{"query": "*:*"}
+	_, err := PostQueryJSON(context.Background(), client, server.URL, "", "", "testcollection", body)
+
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if authHeaderReceived {
+		t.Error("Authorization header should not be sent when user is empty")
+	}
+}
+
+// TestQueryWithRawResponse は QueryWithRawResponse 関数のテストです。
+// 目的: クエリが正しく実行され、生のJSONレスポンスが返されることを確認します。
+func TestQueryWithRawResponse(t *testing.T) {
+	t.Run("正常系: 基本的なクエリ", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// クエリパラメータの確認
+			q := r.URL.Query()
+			// solr-goのQueryParser形式で送信される
+			if q.Get("q") == "" {
+				t.Errorf("q parameter should be set")
+			}
+			if q.Get("wt") != "json" {
+				t.Errorf("Expected wt=json, got wt=%s", q.Get("wt"))
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{
+				"responseHeader": map[string]any{
+					"status": 0,
+					"QTime":  10,
+					"params": map[string]any{
+						"q":  "*:*",
+						"wt": "json",
+					},
+				},
+				"response": map[string]any{
+					"numFound": 1,
+					"start":    0,
+					"docs":     []any{map[string]any{"id": "1"}},
+				},
+			})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser())
+
+		resp, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+
+		// responseHeaderの確認
+		respHeader, ok := resp["responseHeader"].(map[string]any)
+		assert.True(t, ok, "responseHeader should be a map")
+		assert.NotNil(t, respHeader["params"], "params should be present in responseHeader")
+
+		// responseの確認
+		response, ok := resp["response"].(map[string]any)
+		assert.True(t, ok, "response should be a map")
+		assert.Equal(t, float64(1), response["numFound"])
+	})
+
+	t.Run("正常系: paramsでパラメータを追加", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser()).
+			Params(solr.M{
+				"rows":  10,
+				"start": 5,
+			})
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("正常系: Basic認証", func(t *testing.T) {
+		var receivedAuth string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedAuth = r.Header.Get("Authorization")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser())
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "testuser", "testpass", "testcollection", query)
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, receivedAuth, "Authorization header should be sent")
+		assert.True(t, strings.HasPrefix(receivedAuth, "Basic "), "Should use Basic auth")
+	})
+
+	t.Run("正常系: 認証なし", func(t *testing.T) {
+		authHeaderReceived := false
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("Authorization") != "" {
+				authHeaderReceived = true
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser())
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.NoError(t, err)
+		assert.False(t, authHeaderReceived, "Authorization header should not be sent when user is empty")
+	})
+
+	t.Run("正常系: 複数のフィルタクエリ", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser()).
+			Params(solr.M{
+				"fq": []string{"status:active", "type:book"},
+			})
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("正常系: ネストされたparamsマップ", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser()).
+			Params(solr.M{
+				"facet":       "true",
+				"facet.field": "category",
+			})
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("正常系: 様々な型のパラメータ", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser()).
+			Params(solr.M{
+				"rows":         100,
+				"custom_int64": int64(9223372036854775807),
+				"custom_float": float64(3.14159),
+				"debug":        true,
+			})
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("正常系: []anyのパラメータ", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser()).
+			Params(solr.M{
+				"fq": []any{"status:active", "type:book"},
+			})
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("正常系: コレクション名に特殊文字", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.Contains(r.URL.Path, "test%20collection") && !strings.Contains(r.URL.Path, "test collection") {
+				t.Errorf("Expected URL path to contain escaped collection name, got: %s", r.URL.Path)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser())
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "test collection", query)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("正常系: paramsでネストされたマップ", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			q := r.URL.Query()
+			// ネストされたマップのキーがフラット化されて送信される
+			if q.Get("custom_key") == "" {
+				t.Logf("Query params: %v", q)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser()).
+			Params(solr.M{
+				"nested": map[string]any{
+					"custom_key": "custom_value",
+				},
+			})
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("正常系: ネストされたマップに[]stringが含まれる", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser()).
+			Params(solr.M{
+				"nested_map": map[string]any{
+					"tags": []string{"tag1", "tag2"},
+				},
+			})
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("正常系: ネストされたマップに予期しない型が含まれる", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser()).
+			Params(solr.M{
+				"nested_map": map[string]any{
+					"complex": map[string]string{"inner": "value"},
+				},
+			})
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("正常系: 予期しない型のパラメータ（default case）", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		// BuildQueryの結果を直接操作してdefaultケースをトリガー
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser()).
+			Params(solr.M{
+				"unexpected": struct{ Value string }{Value: "test"},
+			})
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("正常系: limit/offset/fields/filterのパラメータ変換", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]any{"response": map[string]any{}})
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		// これらのパラメータキーを使用してswitch文の各caseをカバー
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser()).
+			Params(solr.M{
+				"limit":  20,
+				"offset": 10,
+				"fields": "id,title",
+				"filter": "status:active",
+			})
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("異常系: HTTPエラー", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser())
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "HTTP status 500")
+	})
+
+	t.Run("異常系: 不正なJSON", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"invalid json`))
+		}))
+		defer server.Close()
+
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser())
+
+		_, err := QueryWithRawResponse(context.Background(), client, server.URL, "", "", "testcollection", query)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "JSON decode error")
+	})
+
+	t.Run("異常系: ネットワークエラー", func(t *testing.T) {
+		client := &http.Client{}
+		query := solr.NewQuery(solr.NewStandardQueryParser().Query("*:*").BuildParser())
+
+		_, err := QueryWithRawResponse(context.Background(), client, "http://invalid-host-that-does-not-exist:9999", "", "", "testcollection", query)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "HTTP request error")
+	})
 }

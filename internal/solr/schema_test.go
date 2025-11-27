@@ -110,11 +110,6 @@ func TestGetFieldCatalog(t *testing.T) {
 				"title_txt_ja": {Description: "タイトル"},
 				"price_i":      {Description: "価格"},
 			},
-			Texts:   []string{"id", "title_txt_ja", "category_s"},
-			Numbers: []string{"price_i", "stock_l", "weight_f", "score_d"},
-			Dates:   []string{"release_dt"},
-			Bools:   []string{"in_stock_b"},
-			// GuessFields の結果は別途テストが必要だが、ここでは主要な分類を検証
 		}
 
 		// 結果の検証
@@ -126,19 +121,6 @@ func TestGetFieldCatalog(t *testing.T) {
 		}
 		if !reflect.DeepEqual(fc.Metadata, expectedFC.Metadata) {
 			t.Errorf("Metadata が異なります. got=%v, want=%v", fc.Metadata, expectedFC.Metadata)
-		}
-		// スライスの比較は順序を問わないようにするべきだが、ここでは簡略化
-		if !reflect.DeepEqual(fc.Texts, expectedFC.Texts) {
-			t.Errorf("Texts が異なります. got=%v, want=%v", fc.Texts, expectedFC.Texts)
-		}
-		if !reflect.DeepEqual(fc.Numbers, expectedFC.Numbers) {
-			t.Errorf("Numbers が異なります. got=%v, want=%v", fc.Numbers, expectedFC.Numbers)
-		}
-		if !reflect.DeepEqual(fc.Dates, expectedFC.Dates) {
-			t.Errorf("Dates が異なります. got=%v, want=%v", fc.Dates, expectedFC.Dates)
-		}
-		if !reflect.DeepEqual(fc.Bools, expectedFC.Bools) {
-			t.Errorf("Bools が異なります. got=%v, want=%v", fc.Bools, expectedFC.Bools)
 		}
 	})
 
@@ -318,168 +300,183 @@ func TestGetFieldCatalog(t *testing.T) {
 			t.Errorf("UniqueKey が取得できていません. got=%s", fc.UniqueKey)
 		}
 	})
-}
 
-// TestGuessFields は GuessFields 関数のテストです。
-// 様々なフィールド名から、価格、日付、ブランドなどの役割を正しく推測できるか検証します。
-func TestGuessFields(t *testing.T) {
-	// --- テストケースの定義 ---
-	testCases := []struct {
-		name     string
-		fc       *types.FieldCatalog
-		expected types.GuessedFields
-	}{
-		{
-			name: "英語のフィールド名から推測",
-			fc: &types.FieldCatalog{
-				Numbers: []string{"item_price", "age"},
-				Dates:   []string{"created_date"},
-				Texts:   []string{"product_brand", "item_category", "title"},
-				Bools:   []string{"is_in_stock"},
-			},
-			expected: types.GuessedFields{
-				Price:     "item_price",
-				Date:      "created_date",
-				Brand:     "product_brand",
-				Category:  "item_category",
-				InStock:   "is_in_stock",
-				DefaultDF: "title",
-				TextTopN:  []string{"title", "product_brand", "item_category"},
-			},
-		},
-		{
-			name: "日本語のフィールド名から推測",
-			fc: &types.FieldCatalog{
-				Numbers: []string{"商品価格"},
-				Dates:   []string{"登録日時"},
-				Texts:   []string{"メーカー名", "商品分類", "商品名"},
-				Bools:   []string{"在庫有無"},
-			},
-			expected: types.GuessedFields{
-				Price:     "商品価格",
-				Date:      "登録日時",
-				Brand:     "メーカー名",
-				Category:  "商品分類",
-				InStock:   "在庫有無",
-				DefaultDF: "商品名",
-				TextTopN:  []string{"商品名", "メーカー名", "商品分類"},
-			},
-		},
-		{
-			name: "該当するフィールドがない場合",
-			fc: &types.FieldCatalog{
-				Numbers: []string{"field1"},
-				Dates:   []string{"field2"},
-				Texts:   []string{"field3"},
-				Bools:   []string{"field4"},
-			},
-			expected: types.GuessedFields{
-				Price:     "",
-				Date:      "",
-				Brand:     "",
-				Category:  "",
-				InStock:   "",
-				DefaultDF: "field3", // Textsの最初のフィールドが使われる
-				TextTopN:  []string{"field3"},
-			},
-		},
-		{
-			name: "テキストフィールドの優先順位付け",
-			fc: &types.FieldCatalog{
-				Texts: []string{"description", "product_name", "text"},
-			},
-			expected: types.GuessedFields{
-				Price:     "",
-				Date:      "",
-				Brand:     "",
-				Category:  "",
-				InStock:   "",
-				DefaultDF: "product_name", // "name" が "description" や "text" より優先される
-				TextTopN:  []string{"product_name", "description", "text"},
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// テスト対象の関数を実行
-			actual := GuessFields(tc.fc)
-			// 結果を比較
-			if !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("結果が異なります。\n got: %+v\nwant: %+v", actual, tc.expected)
+	t.Run("正常系: Basic認証を使用する場合", func(t *testing.T) {
+		// 目的: User/Passが設定されている場合、Basic認証ヘッダーが正しく送信されることを確認します。
+		var receivedAuth string
+		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedAuth = r.Header.Get("Authorization")
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/solr/testcollection/schema/uniquekey":
+				fmt.Fprintln(w, `{"uniqueKey":"id"}`)
+			case "/solr/testcollection/schema/fields":
+				fmt.Fprintln(w, `{"fields":[]}`)
+			case "/solr/testcollection/admin/file":
+				fmt.Fprintln(w, `{}`)
+			default:
+				http.NotFound(w, r)
 			}
-		})
-	}
-}
+		}))
+		defer authServer.Close()
 
-// TestSummarizeSchema は SummarizeSchema 関数のテストです。
-// FieldCatalog の内容が、期待通りに文字列として要約されるか検証します。
-func TestSummarizeSchema(t *testing.T) {
-	// --- テストケースの定義 ---
-	testCases := []struct {
-		name     string
-		fc       *types.FieldCatalog
-		expected string
-	}{
-		{
-			name: "全ての情報を持つカタログ",
-			fc: &types.FieldCatalog{
-				UniqueKey: "product_id",
-				Texts:     []string{"title", "description"},
-				Numbers:   []string{"price"},
-				Dates:     []string{"release_date"},
-				Bools:     []string{"in_stock"},
-				Metadata: map[string]types.FieldMetadata{
-					"title": {Description: "商品名"},
-					"price": {Description: "価格"},
-				},
-				Guessed: types.GuessedFields{
-					Price:     "price",
-					Date:      "release_date",
-					DefaultDF: "title",
-				},
+		sCtx := SchemaContext{
+			HttpClient: authServer.Client(),
+			BaseURL:    authServer.URL,
+			User:       "testuser",
+			Pass:       "testpass",
+			Cache: &types.SchemaCache{
+				ByCol:     make(map[string]*types.FieldCatalog),
+				LastFetch: make(map[string]time.Time),
+				TTL:       1 * time.Minute,
 			},
-			expected: `uniqueKey=product_id
-text_fields: title(商品名), description
-number_fields: price(価格)
-date_fields: release_date
-bool_fields: in_stock
-guess.price=price
-guess.date=release_date
-guess.defaultDF=title
-`,
-		},
-		{
-			name: "一部の情報が欠けているカタログ",
-			fc: &types.FieldCatalog{
-				UniqueKey: "id",
-				Texts:     []string{"name"},
-				Numbers:   []string{}, // 数字フィールドなし
-				Dates:     []string{}, // 日付フィールドなし
-				Bools:     []string{"available"},
-				Metadata:  map[string]types.FieldMetadata{}, // メタデータなし
-				Guessed:   types.GuessedFields{},            // 推測結果なし
-			},
-			expected: `uniqueKey=id
-text_fields: name
-bool_fields: available
-`,
-		},
-		{
-			name:     "空のカタログ",
-			fc:       &types.FieldCatalog{},
-			expected: "uniqueKey=\n",
-		},
-	}
+		}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// テスト対象の関数を実行
-			actual := SummarizeSchema(tc.fc)
-			// 結果を比較
-			if actual != tc.expected {
-				t.Errorf("結果が異なります。\n--- got ---\n%s\n--- want ---\n%s", actual, tc.expected)
+		_, err := GetFieldCatalog(context.Background(), sCtx, "testcollection")
+		if err != nil {
+			t.Fatalf("予期せぬエラーが発生しました: %v", err)
+		}
+
+		// Basic認証ヘッダーが送信されたことを確認
+		if receivedAuth == "" {
+			t.Error("Authorization ヘッダーが送信されていません")
+		}
+		if len(receivedAuth) < 6 || receivedAuth[:5] != "Basic" {
+			t.Errorf("Basic認証ヘッダーの形式が正しくありません. got=%s", receivedAuth)
+		}
+	})
+
+	t.Run("異常系: UniqueKey取得APIがエラーを返す場合", func(t *testing.T) {
+		// 目的: uniqueKey取得時にエラーが発生した場合、GetFieldCatalogが正しくエラーを返すことを確認します。
+		errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/solr/testcollection/schema/uniquekey" {
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			} else {
+				http.NotFound(w, r)
 			}
-		})
-	}
+		}))
+		defer errorServer.Close()
+
+		sCtx := SchemaContext{
+			HttpClient: errorServer.Client(),
+			BaseURL:    errorServer.URL,
+			Cache: &types.SchemaCache{
+				ByCol:     make(map[string]*types.FieldCatalog),
+				LastFetch: make(map[string]time.Time),
+				TTL:       1 * time.Minute,
+			},
+		}
+
+		_, err := GetFieldCatalog(context.Background(), sCtx, "testcollection")
+		if err == nil {
+			t.Fatal("エラーが返されるべきところで、nil が返されました")
+		}
+	})
+
+	t.Run("異常系: HTTPリクエスト自体が失敗する場合", func(t *testing.T) {
+		// 目的: ネットワークエラーなどでHTTPリクエストが失敗した場合、適切にエラーが返されることを確認します。
+		sCtx := SchemaContext{
+			HttpClient: &http.Client{},
+			BaseURL:    "http://invalid-host-that-does-not-exist:9999",
+			Cache: &types.SchemaCache{
+				ByCol:     make(map[string]*types.FieldCatalog),
+				LastFetch: make(map[string]time.Time),
+				TTL:       1 * time.Minute,
+			},
+		}
+
+		_, err := GetFieldCatalog(context.Background(), sCtx, "testcollection")
+		if err == nil {
+			t.Fatal("エラーが返されるべきところで、nil が返されました")
+		}
+	})
+
+	t.Run("正常系: コレクション名に特殊文字が含まれる場合", func(t *testing.T) {
+		// 目的: コレクション名にURL エスケープが必要な文字が含まれる場合でも正しく処理されることを確認します。
+		specialServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			// URL エスケープされたコレクション名を確認（複数のパターンに対応）
+			switch {
+			case r.URL.Path == "/solr/test%20collection/schema/uniquekey" ||
+				r.URL.Path == "/solr/test collection/schema/uniquekey":
+				fmt.Fprintln(w, `{"uniqueKey":"id"}`)
+			case r.URL.Path == "/solr/test%20collection/schema/fields" ||
+				r.URL.Path == "/solr/test collection/schema/fields":
+				fmt.Fprintln(w, `{"fields":[]}`)
+			case r.URL.Path == "/solr/test%20collection/admin/file" ||
+				r.URL.Path == "/solr/test collection/admin/file":
+				fmt.Fprintln(w, `{}`)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		defer specialServer.Close()
+
+		sCtx := SchemaContext{
+			HttpClient: specialServer.Client(),
+			BaseURL:    specialServer.URL,
+			Cache: &types.SchemaCache{
+				ByCol:     make(map[string]*types.FieldCatalog),
+				LastFetch: make(map[string]time.Time),
+				TTL:       1 * time.Minute,
+			},
+		}
+
+		fc, err := GetFieldCatalog(context.Background(), sCtx, "test collection")
+		if err != nil {
+			t.Fatalf("予期せぬエラーが発生しました: %v", err)
+		}
+
+		if fc.UniqueKey != "id" {
+			t.Errorf("UniqueKey が取得できていません. got=%s", fc.UniqueKey)
+		}
+	})
+
+	t.Run("正常系: キャッシュTTLが0の場合", func(t *testing.T) {
+		// 目的: TTLが0の場合、毎回APIリクエストが発行されることを確認します。
+		requestCount := 0
+		zeroTTLServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestCount++
+			w.Header().Set("Content-Type", "application/json")
+			switch r.URL.Path {
+			case "/solr/testcollection/schema/uniquekey":
+				fmt.Fprintln(w, `{"uniqueKey":"id"}`)
+			case "/solr/testcollection/schema/fields":
+				fmt.Fprintln(w, `{"fields":[]}`)
+			case "/solr/testcollection/admin/file":
+				fmt.Fprintln(w, `{}`)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		defer zeroTTLServer.Close()
+
+		sCtx := SchemaContext{
+			HttpClient: zeroTTLServer.Client(),
+			BaseURL:    zeroTTLServer.URL,
+			Cache: &types.SchemaCache{
+				ByCol:     make(map[string]*types.FieldCatalog),
+				LastFetch: make(map[string]time.Time),
+				TTL:       0, // TTLを0に設定
+			},
+		}
+
+		// 1回目の呼び出し
+		_, err := GetFieldCatalog(context.Background(), sCtx, "testcollection")
+		if err != nil {
+			t.Fatalf("1回目の呼び出しでエラー: %v", err)
+		}
+		firstRequestCount := requestCount
+
+		// 2回目の呼び出し（TTLが0なので再度リクエストされるはず）
+		_, err = GetFieldCatalog(context.Background(), sCtx, "testcollection")
+		if err != nil {
+			t.Fatalf("2回目の呼び出しでエラー: %v", err)
+		}
+
+		// リクエスト数が増えていることを確認
+		if requestCount <= firstRequestCount {
+			t.Errorf("TTLが0の場合、リクエストが再発行されるべきです. got=%d, want>%d", requestCount, firstRequestCount)
+		}
+	})
 }

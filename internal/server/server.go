@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -24,12 +23,6 @@ type State struct {
 	BasicUser         string
 	BasicPass         string
 	SchemaCache       types.SchemaCache
-	LlmBaseURL        string
-	LlmAPIKey         string
-	LlmModel          string
-	EmbeddingBaseURL  string
-	EmbeddingAPIKey   string
-	EmbeddingModel    string
 }
 
 func NewServerState() *State {
@@ -47,13 +40,9 @@ func NewServerState() *State {
 			TTL:       10 * time.Minute,
 			ByCol:     make(map[string]*types.FieldCatalog),
 		},
-		LlmBaseURL:       config.GetEnv("LLM_BASE_URL", "http://localhost:8000/v1"),
-		LlmAPIKey:        config.GetEnv("LLM_API_KEY", ""),
-		LlmModel:         config.GetEnv("LLM_MODEL", "gpt-4o"),
-		EmbeddingBaseURL: config.GetEnv("EMBEDDING_BASE_URL", "http://localhost:8000/v1"),
-		EmbeddingAPIKey:  config.GetEnv("EMBEDDING_API_KEY", ""),
-		EmbeddingModel:   config.GetEnv("EMBEDDING_MODEL", "text-embedding-3-small"),
 	}
+
+	slog.Info("Configured Solr client", "base_url", baseURL, "default_collection", st.DefaultCollection)
 	return st
 }
 
@@ -80,14 +69,4 @@ func Run(url string) {
 		slog.Error("Error running MCP server", "error", err)
 		os.Exit(1)
 	}
-}
-
-func (st *State) ColOrDefault(c string) (string, error) {
-	if c != "" {
-		return c, nil
-	}
-	if st.DefaultCollection != "" {
-		return st.DefaultCollection, nil
-	}
-	return "", errors.New("collection is required. set input.collection or SOLR_MCP_DEFAULT_COLLECTION")
 }
