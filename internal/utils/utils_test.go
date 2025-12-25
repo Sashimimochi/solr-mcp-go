@@ -12,50 +12,50 @@ import (
 	"time"
 )
 
-// TestLoggingHandler は LoggingHandler ミドルウェアのテストです。
-// リクエストの開始時と完了時に、期待されるログが出力されることを確認します。
+// TestLoggingHandler tests the LoggingHandler middleware.
+// Verifies expected logs are emitted at request start and completion.
 func TestLoggingHandler(t *testing.T) {
-	// slog の出力をキャプチャするためのバッファ
+	// Buffer to capture slog output
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
-	// デフォルトのロガーを、バッファに書き込むロガーに差し替える
+	// Replace default logger with one writing to the buffer
 	originalLogger := slog.Default()
 	slog.SetDefault(logger)
-	// テスト終了時にロガーを元に戻す
+	// Restore the original logger at test end
 	defer slog.SetDefault(originalLogger)
 
-	// テスト対象のハンドラ
+	// Handler under test
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
 	})
 
-	// ミドルウェアでラップ
+	// Wrap with middleware
 	handlerToTest := LoggingHandler(testHandler)
 
-	// テスト用のリクエストを作成
+	// Create a test request
 	req := httptest.NewRequest("GET", "/test-path", nil)
 	rr := httptest.NewRecorder()
 
-	// ハンドラを実行
+	// Execute handler
 	handlerToTest.ServeHTTP(rr, req)
 
-	// ログの出力を文字列として取得
+	// Get log output as string
 	logOutput := buf.String()
 
-	// 開始ログの検証
+	// Validate start log
 	if !strings.Contains(logOutput, "Started") || !strings.Contains(logOutput, "method=GET") || !strings.Contains(logOutput, "path=/test-path") {
-		t.Errorf("開始ログが期待通りではありませんでした. got=%q", logOutput)
+		t.Errorf("Start log not as expected. got=%q", logOutput)
 	}
 
-	// 完了ログの検証
+	// Validate completion log
 	if !strings.Contains(logOutput, "Completed") || !strings.Contains(logOutput, "duration=") {
-		t.Errorf("完了ログが期待通りではありませんでした. got=%q", logOutput)
+		t.Errorf("Completion log not as expected. got=%q", logOutput)
 	}
 }
 
-// TestChoose は Choose 関数のテストです。
-// 文字列が空の場合にフォールバック文字列が返されることを確認します。
+// TestChoose tests the Choose function.
+// Ensures fallback string is returned when s is empty.
 func TestChoose(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -63,25 +63,25 @@ func TestChoose(t *testing.T) {
 		fallback string
 		expected string
 	}{
-		{"sが非空", "hello", "world", "hello"},
-		{"sが空", "", "world", "world"},
-		{"sが空白のみ", "   ", "world", "world"},
-		{"両方非空", "hello", "world", "hello"},
-		{"両方空", "", "", ""},
+		{"s is non-empty", "hello", "world", "hello"},
+		{"s is empty", "", "world", "world"},
+		{"s is whitespace only", "   ", "world", "world"},
+		{"both non-empty", "hello", "world", "hello"},
+		{"both empty", "", "", ""},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := Choose(tc.s, tc.fallback)
 			if actual != tc.expected {
-				t.Errorf("結果が異なります. got=%q, want=%q", actual, tc.expected)
+				t.Errorf("Result differs. got=%q, want=%q", actual, tc.expected)
 			}
 		})
 	}
 }
 
-// TestChooseInt は ChooseInt 関数のテストです。
-// 整数が0の場合にフォールバック値が返されることを確認します。
+// TestChooseInt tests the ChooseInt function.
+// Ensures fallback value is returned when i is 0.
 func TestChooseInt(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -89,25 +89,25 @@ func TestChooseInt(t *testing.T) {
 		fallback int
 		expected int
 	}{
-		{"iが非ゼロ", 10, 20, 10},
-		{"iがゼロ", 0, 20, 20},
-		{"両方非ゼロ", 10, 20, 10},
-		{"両方ゼロ", 0, 0, 0},
-		{"iが負の値", -5, 10, -5},
+		{"i is non-zero", 10, 20, 10},
+		{"i is zero", 0, 20, 20},
+		{"both non-zero", 10, 20, 10},
+		{"both zero", 0, 0, 0},
+		{"i is negative", -5, 10, -5},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := ChooseInt(tc.i, tc.fallback)
 			if actual != tc.expected {
-				t.Errorf("結果が異なります. got=%d, want=%d", actual, tc.expected)
+				t.Errorf("Result differs. got=%d, want=%d", actual, tc.expected)
 			}
 		})
 	}
 }
 
-// TestHeadN は HeadN 関数のテストです。
-// スライスの先頭N件を正しく取得できることを確認します。
+// TestHeadN tests the HeadN function.
+// Ensures the first N elements of a slice are returned correctly.
 func TestHeadN(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -115,17 +115,17 @@ func TestHeadN(t *testing.T) {
 		n        int
 		expected []int
 	}{
-		{"nが長さより小さい", []int{1, 2, 3, 4, 5}, 3, []int{1, 2, 3}},
-		{"nが長さと等しい", []int{1, 2, 3}, 3, []int{1, 2, 3}},
-		{"nが長さより大きい", []int{1, 2}, 5, []int{1, 2}},
-		{"nが0", []int{1, 2, 3}, 0, []int{}},
-		{"スライスが空", []int{}, 5, []int{}},
-		{"nが負の値", []int{1, 2, 3}, -1, []int{}}, // n <= 0 のケース
+		{"n less than length", []int{1, 2, 3, 4, 5}, 3, []int{1, 2, 3}},
+		{"n equals length", []int{1, 2, 3}, 3, []int{1, 2, 3}},
+		{"n greater than length", []int{1, 2}, 5, []int{1, 2}},
+		{"n is 0", []int{1, 2, 3}, 0, []int{}},
+		{"slice is empty", []int{}, 5, []int{}},
+		{"n is negative", []int{1, 2, 3}, -1, []int{}}, // case where n <= 0
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// HeadNは負のnを0として扱うべき
+			// HeadN should treat negative n as 0
 			n := tc.n
 			if n < 0 {
 				n = 0
@@ -137,14 +137,14 @@ func TestHeadN(t *testing.T) {
 
 			actual := HeadN(tc.s, tc.n)
 			if !reflect.DeepEqual(actual, expected) {
-				t.Errorf("結果が異なります. got=%v, want=%v", actual, expected)
+				t.Errorf("Result differs. got=%v, want=%v", actual, expected)
 			}
 		})
 	}
 }
 
-// TestPrioritize は Prioritize 関数のテストです。
-// 文字列スライスが、優先キーワードに基づいて正しく並べ替えられることを確認します。
+// TestPrioritize tests the Prioritize function.
+// Ensures strings are ordered based on priority keywords.
 func TestPrioritize(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -153,37 +153,37 @@ func TestPrioritize(t *testing.T) {
 		expected []string
 	}{
 		{
-			name:     "基本的な優先順位付け",
+			name:     "Basic prioritization",
 			names:    []string{"apple", "banana", "cherry"},
 			prefs:    []string{"banana", "apple"},
 			expected: []string{"banana", "apple", "cherry"},
 		},
 		{
-			name:     "大文字小文字を区別しない",
+			name:     "Case-insensitive matching",
 			names:    []string{"Apple", "banana", "Cherry"},
 			prefs:    []string{"cherry", "apple"},
 			expected: []string{"Cherry", "Apple", "banana"},
 		},
 		{
-			name:     "重複する要素は先に現れたものが優先",
+			name:     "Prefer earlier duplicates",
 			names:    []string{"title_en", "title_ja", "description"},
 			prefs:    []string{"title"},
 			expected: []string{"title_en", "title_ja", "description"},
 		},
 		{
-			name:     "優先キーワードに一致しない",
+			name:     "No match with preferences",
 			names:    []string{"a", "b", "c"},
 			prefs:    []string{"d", "e"},
 			expected: []string{"a", "b", "c"},
 		},
 		{
-			name:     "namesが空",
+			name:     "Empty names",
 			names:    []string{},
 			prefs:    []string{"a", "b"},
 			expected: []string{},
 		},
 		{
-			name:     "prefsが空",
+			name:     "Empty prefs",
 			names:    []string{"a", "b", "c"},
 			prefs:    []string{},
 			expected: []string{"a", "b", "c"},
@@ -194,16 +194,16 @@ func TestPrioritize(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			actual := Prioritize(tc.names, tc.prefs)
 			if !reflect.DeepEqual(actual, tc.expected) {
-				t.Errorf("結果が異なります. got=%v, want=%v", actual, tc.expected)
+				t.Errorf("Result differs. got=%v, want=%v", actual, tc.expected)
 			}
 		})
 	}
 }
 
 func TestGetTimezone(t *testing.T) {
-	// タイムゾーンがUTCの場合
-	t.Run("UTCの場合", func(t *testing.T) {
-		// UTCに設定
+	// When timezone is UTC
+	t.Run("UTC case", func(t *testing.T) {
+		// Set to UTC
 		loc := time.FixedZone("UTC", 0)
 		time.Local = loc
 
@@ -213,9 +213,9 @@ func TestGetTimezone(t *testing.T) {
 		}
 	})
 
-	// タイムゾーンがJSTの場合
-	t.Run("JSTの場合", func(t *testing.T) {
-		// JSTに設定
+	// When timezone is JST
+	t.Run("JST case", func(t *testing.T) {
+		// Set to JST
 		loc := time.FixedZone("JST", 9*3600)
 		time.Local = loc
 
@@ -227,8 +227,8 @@ func TestGetTimezone(t *testing.T) {
 }
 
 func TestTwoDigitString(t *testing.T) {
-	// nが10以上の場合
-	t.Run("nが10以上", func(t *testing.T) {
+	// When n is greater than or equal to 10
+	t.Run("n >= 10", func(t *testing.T) {
 		for i := 10; i < 100; i++ {
 			s := strconv.Itoa(i)
 			if len(s) != 2 {
@@ -237,8 +237,8 @@ func TestTwoDigitString(t *testing.T) {
 		}
 	})
 
-	// nが0から9の場合
-	t.Run("nが0から9", func(t *testing.T) {
+	// When n is between 0 and 9
+	t.Run("n between 0 and 9", func(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			s := strconv.Itoa(i)
 			if len(s) != 1 {
@@ -251,8 +251,8 @@ func TestTwoDigitString(t *testing.T) {
 		}
 	})
 
-	// nが負の値の場合
-	t.Run("nが負の値", func(t *testing.T) {
+	// When n is negative
+	t.Run("n is negative", func(t *testing.T) {
 		s := strconv.Itoa(-5)
 		if s != "-5" {
 			t.Errorf("Expected '-5' for -5, got '%s'", s)

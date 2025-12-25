@@ -44,7 +44,7 @@ func HeadN[T any](s []T, n int) []T {
 
 func Prioritize(names []string, prefs []string) []string {
 	if len(names) == 0 {
-		return []string{} // namesが空なら、nilではなく空のスライスを返す
+		return []string{} // If names is empty, return an empty slice instead of nil
 	}
 	var out []string
 	seen := map[string]bool{}
@@ -65,7 +65,7 @@ func Prioritize(names []string, prefs []string) []string {
 }
 
 func GetTimezone() string {
-	// RFC3339形式のタイムゾーンオフセット（例: +09:00, -05:00, Z）を生成する
+	// Generate RFC3339 timezone offset (e.g., +09:00, -05:00, Z)
 	_, offset := time.Now().Zone()
 	if offset == 0 {
 		return "Z"

@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// newTestState はテスト用のStateとモックサーバーを生成します。
+// newTestState creates a test State and HTTP mock server client.
 func newTestState(t *testing.T, baseURL string) *State {
 	client := solr.NewJSONClient(baseURL)
 	return &State{
@@ -31,10 +31,10 @@ func newTestState(t *testing.T, baseURL string) *State {
 	}
 }
 
-// TestToolQuery は toolQuery メソッドのテストです。
+// TestToolQuery tests the toolQuery method.
 func TestToolQuery(t *testing.T) {
-	t.Run("正常系: 基本的なクエリ", func(t *testing.T) {
-		// モックサーバーのセットアップ
+	t.Run("Success: basic query", func(t *testing.T) {
+		// Setup mock server
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !strings.Contains(r.URL.Path, "/select") {
 				t.Errorf("Expected /select in path, got: %s", r.URL.Path)
@@ -64,7 +64,7 @@ func TestToolQuery(t *testing.T) {
 		assert.NotNil(t, respMap["response"])
 	})
 
-	t.Run("正常系: パラメータ付きクエリ", func(t *testing.T) {
+	t.Run("Success: query with parameters", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			q := r.URL.Query()
 			if q.Get("rows") != "10" {
@@ -97,7 +97,7 @@ func TestToolQuery(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("正常系: フィルタクエリ付き", func(t *testing.T) {
+	t.Run("Success: with filter queries", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -117,7 +117,7 @@ func TestToolQuery(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("正常系: echoParams付き", func(t *testing.T) {
+	t.Run("Success: with echoParams", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -137,7 +137,7 @@ func TestToolQuery(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("正常系: カスタムparams", func(t *testing.T) {
+	t.Run("Success: custom params", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -160,7 +160,7 @@ func TestToolQuery(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("正常系: クエリが空の場合は*:*が使用される", func(t *testing.T) {
+	t.Run("Success: empty query falls back to *:*", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -179,7 +179,7 @@ func TestToolQuery(t *testing.T) {
 		assert.NoError(t, err)
 	})
 
-	t.Run("異常系: コレクションが指定されていない", func(t *testing.T) {
+	t.Run("Error: collection not provided", func(t *testing.T) {
 		st := newTestState(t, "http://localhost:8983")
 		in := types.QueryIn{
 			Collection: "",
@@ -192,7 +192,7 @@ func TestToolQuery(t *testing.T) {
 		assert.Contains(t, err.Error(), "collection is required")
 	})
 
-	t.Run("異常系: コレクションが空白のみ", func(t *testing.T) {
+	t.Run("Error: collection only whitespace", func(t *testing.T) {
 		st := newTestState(t, "http://localhost:8983")
 		in := types.QueryIn{
 			Collection: "   ",
@@ -205,7 +205,7 @@ func TestToolQuery(t *testing.T) {
 		assert.Contains(t, err.Error(), "collection is required")
 	})
 
-	t.Run("異常系: HTTPエラー", func(t *testing.T) {
+	t.Run("Error: HTTP error", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}))
@@ -223,9 +223,9 @@ func TestToolQuery(t *testing.T) {
 	})
 }
 
-// TestToolPing は toolPing メソッドのテストです。
+// TestToolPing tests the toolPing method.
 func TestToolPing(t *testing.T) {
-	t.Run("正常系: クラスタステータス取得成功", func(t *testing.T) {
+	t.Run("Success: cluster status", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !strings.Contains(r.URL.Path, "/admin/collections") {
 				t.Errorf("Expected /admin/collections in path, got: %s", r.URL.Path)
@@ -258,7 +258,7 @@ func TestToolPing(t *testing.T) {
 		assert.Equal(t, 2, respMap["num_nodes"])
 	})
 
-	t.Run("正常系: Basic認証", func(t *testing.T) {
+	t.Run("Success: Basic auth", func(t *testing.T) {
 		var receivedAuth string
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			receivedAuth = r.Header.Get("Authorization")
@@ -283,7 +283,7 @@ func TestToolPing(t *testing.T) {
 		assert.True(t, strings.HasPrefix(receivedAuth, "Basic "))
 	})
 
-	t.Run("異常系: HTTPエラー", func(t *testing.T) {
+	t.Run("Error: HTTP error", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
 		}))
@@ -295,11 +295,11 @@ func TestToolPing(t *testing.T) {
 		_, _, err := st.toolPing(context.Background(), nil, in)
 
 		assert.Error(t, err)
-		// HTTPエラーの場合、JSONデコードエラーが発生する
+		// JSON decode error is expected on HTTP error
 		assert.Contains(t, err.Error(), "decode response")
 	})
 
-	t.Run("異常系: 不正なJSON", func(t *testing.T) {
+	t.Run("Error: invalid JSON", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -316,7 +316,7 @@ func TestToolPing(t *testing.T) {
 		assert.Contains(t, err.Error(), "decode response")
 	})
 
-	t.Run("異常系: ネットワークエラー", func(t *testing.T) {
+	t.Run("Error: network error", func(t *testing.T) {
 		st := newTestState(t, "http://invalid-host-that-does-not-exist:9999")
 		in := types.PingIn{}
 
@@ -326,7 +326,7 @@ func TestToolPing(t *testing.T) {
 		assert.Contains(t, err.Error(), "cluster status request")
 	})
 
-	t.Run("正常系: 認証なし", func(t *testing.T) {
+	t.Run("Success: without auth", func(t *testing.T) {
 		var receivedAuth string
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			receivedAuth = r.Header.Get("Authorization")
@@ -340,7 +340,7 @@ func TestToolPing(t *testing.T) {
 		defer server.Close()
 
 		st := newTestState(t, server.URL)
-		// BasicUserとBasicPassを空にする
+		// Clear BasicUser and BasicPass
 		st.BasicUser = ""
 		st.BasicPass = ""
 		in := types.PingIn{}
@@ -352,9 +352,9 @@ func TestToolPing(t *testing.T) {
 	})
 }
 
-// TestToolCollectionHealth は toolCollectionHealth メソッドのテストです。
+// TestToolCollectionHealth tests the toolCollectionHealth method.
 func TestToolCollectionHealth(t *testing.T) {
-	t.Run("正常系: コレクションヘルスチェック成功", func(t *testing.T) {
+	t.Run("Success: collection health", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Query().Get("collection") != "testcol" {
 				t.Errorf("Expected collection=testcol, got: %s", r.URL.Query().Get("collection"))
@@ -392,7 +392,7 @@ func TestToolCollectionHealth(t *testing.T) {
 		assert.Equal(t, "testconf", respMap["configName"])
 	})
 
-	t.Run("正常系: Basic認証", func(t *testing.T) {
+	t.Run("Success: Basic auth", func(t *testing.T) {
 		var receivedAuth string
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			receivedAuth = r.Header.Get("Authorization")
@@ -420,7 +420,7 @@ func TestToolCollectionHealth(t *testing.T) {
 		assert.NotEmpty(t, receivedAuth)
 	})
 
-	t.Run("異常系: コレクションが指定されていない", func(t *testing.T) {
+	t.Run("Error: collection not provided", func(t *testing.T) {
 		st := newTestState(t, "http://localhost:8983")
 		in := types.CollectionHealthIn{Collection: ""}
 
@@ -430,7 +430,7 @@ func TestToolCollectionHealth(t *testing.T) {
 		assert.Contains(t, err.Error(), "collection is required")
 	})
 
-	t.Run("異常系: コレクションが見つからない", func(t *testing.T) {
+	t.Run("Error: collection not found", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -452,7 +452,7 @@ func TestToolCollectionHealth(t *testing.T) {
 		assert.Contains(t, err.Error(), "not found")
 	})
 
-	t.Run("異常系: HTTPエラー", func(t *testing.T) {
+	t.Run("Error: HTTP error", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}))
@@ -466,7 +466,7 @@ func TestToolCollectionHealth(t *testing.T) {
 		assert.Error(t, err)
 	})
 
-	t.Run("異常系: 不正なJSON", func(t *testing.T) {
+	t.Run("Error: invalid JSON", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -483,7 +483,7 @@ func TestToolCollectionHealth(t *testing.T) {
 		assert.Contains(t, err.Error(), "decode response")
 	})
 
-	t.Run("異常系: ネットワークエラー", func(t *testing.T) {
+	t.Run("Error: network error", func(t *testing.T) {
 		st := newTestState(t, "http://invalid-host-that-does-not-exist:9999")
 		in := types.CollectionHealthIn{Collection: "testcol"}
 
@@ -493,7 +493,7 @@ func TestToolCollectionHealth(t *testing.T) {
 		assert.Contains(t, err.Error(), "collection health check")
 	})
 
-	t.Run("正常系: 認証なし", func(t *testing.T) {
+	t.Run("Success: without auth", func(t *testing.T) {
 		var receivedAuth string
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			receivedAuth = r.Header.Get("Authorization")
@@ -522,9 +522,9 @@ func TestToolCollectionHealth(t *testing.T) {
 	})
 }
 
-// TestToolSchema は toolSchema メソッドのテストです。
+// TestToolSchema tests the toolSchema method.
 func TestToolSchema(t *testing.T) {
-	t.Run("正常系: スキーマ取得成功", func(t *testing.T) {
+	t.Run("Success: schema retrieval", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
@@ -562,7 +562,7 @@ func TestToolSchema(t *testing.T) {
 		assert.Len(t, fc.All, 2)
 	})
 
-	t.Run("異常系: コレクションが指定されていない", func(t *testing.T) {
+	t.Run("Error: collection not provided", func(t *testing.T) {
 		st := newTestState(t, "http://localhost:8983")
 		in := types.SchemaIn{Collection: ""}
 
@@ -572,7 +572,7 @@ func TestToolSchema(t *testing.T) {
 		assert.Contains(t, err.Error(), "collection is required")
 	})
 
-	t.Run("異常系: スキーマ取得失敗", func(t *testing.T) {
+	t.Run("Error: schema retrieval failed", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Not Found", http.StatusNotFound)
 		}))
@@ -588,9 +588,9 @@ func TestToolSchema(t *testing.T) {
 	})
 }
 
-// TestAddTools は AddTools 関数のテストです。
+// TestAddTools tests the AddTools function.
 func TestAddTools(t *testing.T) {
-	t.Run("正常系: すべてのツールが登録される", func(t *testing.T) {
+	t.Run("Success: all tools are registered", func(t *testing.T) {
 		impl := &mcp.Implementation{}
 		mcpServer := mcp.NewServer(impl, nil)
 		st := newTestState(t, "http://localhost:8983")
@@ -604,7 +604,7 @@ func TestAddTools(t *testing.T) {
 		assert.Contains(t, toolNames, "solr.schema")
 	})
 
-	t.Run("正常系: ツールの順序が正しい", func(t *testing.T) {
+	t.Run("Success: tool order is correct", func(t *testing.T) {
 		impl := &mcp.Implementation{}
 		mcpServer := mcp.NewServer(impl, nil)
 		st := newTestState(t, "http://localhost:8983")

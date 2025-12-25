@@ -5,51 +5,51 @@ import (
 	"testing"
 )
 
-// TestGetEnv は GetEnv 関数のテストです。
+// TestGetEnv tests the GetEnv function.
 func TestGetEnv(t *testing.T) {
-	// ケース1: 環境変数が設定されている場合
-	t.Run("環境変数が設定されている場合", func(t *testing.T) {
-		// テスト用の環境変数を設定
+	// Case 1: Environment variable is set
+	t.Run("Environment variable is set", func(t *testing.T) {
+		// Set a test environment variable
 		testKey := "TEST_ENV_VAR"
 		expectedValue := "test_value"
 		os.Setenv(testKey, expectedValue)
-		// テスト後に環境変数をクリア
+		// Clear the environment variable after the test
 		defer os.Unsetenv(testKey)
 
-		// GetEnv を呼び出し
+		// Call GetEnv
 		actualValue := GetEnv(testKey, "default")
 
-		// 結果を検証
+		// Verify the result
 		if actualValue != expectedValue {
 			t.Errorf("Expected %s, Actual %s", expectedValue, actualValue)
 		}
 	})
 
-	// ケース2: 環境変数が設定されていない場合
-	t.Run("環境変数が設定されていない場合", func(t *testing.T) {
-		// 存在しない環境変数のキー
+	// Case 2: Environment variable is not set
+	t.Run("Environment variable is not set", func(t *testing.T) {
+		// Non-existent environment variable key
 		testKey := "NON_EXISTENT_VAR"
 		defaultValue := "default_value"
 
-		// GetEnv を呼び出し
+		// Call GetEnv
 		actualValue := GetEnv(testKey, defaultValue)
 
-		// 結果を検証
+		// Verify the result
 		if actualValue != defaultValue {
 			t.Errorf("Expected %s, Actual %s", defaultValue, actualValue)
 		}
 	})
 }
 
-// TestNewSolrClient は NewSolrClient 関数のテストです。
+// TestNewSolrClient tests the NewSolrClient function.
 func TestNewSolrClient(t *testing.T) {
-	// 事前に設定されている可能性のある環境変数をクリア
+	// Clear environment variables that may already be set
 	os.Unsetenv("SOLR_MCP_SOLR_URL")
 	os.Unsetenv("SOLR_BASIC_USER")
 	os.Unsetenv("SOLR_BASIC_PASS")
 
-	// ケース1: 環境変数が何も設定されていない場合
-	t.Run("環境変数が何も設定されていない場合", func(t *testing.T) {
+	// Case 1: No environment variables are set
+	t.Run("No environment variables are set", func(t *testing.T) {
 		_, baseURL, user, pass, _ := NewSolrClient()
 		expectedURL := "http://localhost:8983"
 		if baseURL != expectedURL {
@@ -63,20 +63,20 @@ func TestNewSolrClient(t *testing.T) {
 		}
 	})
 
-	// ケース2: SolrのURLが設定されている場合
-	t.Run("SolrのURLが設定されている場合", func(t *testing.T) {
+	// Case 2: Solr URL is set
+	t.Run("Solr URL is set", func(t *testing.T) {
 		expectedURL := "http://solr.example.com:8983"
 		os.Setenv("SOLR_MCP_SOLR_URL", expectedURL)
 		defer os.Unsetenv("SOLR_MCP_SOLR_URL")
 
 		_, baseURL, _, _, _ := NewSolrClient()
 		if baseURL != expectedURL {
-			t.Errorf("期待するURLは %s, しかし実際は %s", expectedURL, baseURL)
+			t.Errorf("Expected URL %s, Actual %s", expectedURL, baseURL)
 		}
 	})
 
-	// ケース3: Basic認証の情報が設定されている場合
-	t.Run("Basic認証の情報が設定されている場合", func(t *testing.T) {
+	// Case 3: Basic auth credentials are set
+	t.Run("Basic auth credentials are set", func(t *testing.T) {
 		expectedUser := "testuser"
 		expectedPass := "testpass"
 		os.Setenv("SOLR_BASIC_USER", expectedUser)
@@ -86,10 +86,10 @@ func TestNewSolrClient(t *testing.T) {
 
 		_, _, user, pass, _ := NewSolrClient()
 		if user != expectedUser {
-			t.Errorf("期待するユーザー名は %s, しかし実際は %s", expectedUser, user)
+			t.Errorf("Expected username %s, Actual %s", expectedUser, user)
 		}
 		if pass != expectedPass {
-			t.Errorf("期待するパスワードは %s, しかし実際は %s", expectedPass, pass)
+			t.Errorf("Expected password %s, Actual %s", expectedPass, pass)
 		}
 	})
 }

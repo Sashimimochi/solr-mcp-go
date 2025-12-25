@@ -12,13 +12,13 @@ import (
 	"time"
 )
 
-// TestGetFieldCatalog は GetFieldCatalog 関数のテストです。
-// このテストでは、httptest.Server を使用して Solr の API を模倣し、
-// 正常なレスポンス、異常なレスポンス、キャッシュの動作などを検証します。
+// TestGetFieldCatalog tests the GetFieldCatalog function.
+// It uses httptest.Server to mock Solr APIs and verifies
+// normal responses, error responses, and cache behavior.
 func TestGetFieldCatalog(t *testing.T) {
 	// --- Setup Mock Server ---
-	// Solr の API エンドポイントを模倣するハンドラを定義します。
-	// リクエストのパスに応じて、異なる JSON レスポンスを返します。
+	// Define a handler that mimics Solr API endpoints.
+	// It returns different JSON responses based on the request path.
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
@@ -27,17 +27,17 @@ func TestGetFieldCatalog(t *testing.T) {
 			fmt.Fprintln(w, `{"uniqueKey":"id"}`)
 		// Mock Field Information Get API from Solr
 		case "/solr/testcollection/schema/fields":
-			// Mock Invalid URL Path Response
+			// Mock invalid URL path response
 			if r.URL.Query().Get("error") == "true" {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}
-			// Mock Bad JSON Response
+			// Mock bad JSON response
 			if r.URL.Query().Get("badjson") == "true" {
 				fmt.Fprintln(w, `{"fields": [}`)
 				return
 			}
-			// Mock Successful Response
+			// Mock successful response
 			fields := struct {
 				Fields []types.SolrField `json:"fields"`
 			}{
@@ -56,12 +56,12 @@ func TestGetFieldCatalog(t *testing.T) {
 			json.NewEncoder(w).Encode(fields)
 		// Mock Field Metadata Get API from Solr
 		case "/solr/testcollection/admin/file":
-			// Mock Invalid URL Path Response
+			// Mock invalid URL path response
 			if r.URL.Query().Get("error") == "true" {
 				http.Error(w, "File Not Found", http.StatusNotFound)
 				return
 			}
-			// Mock Successful Response
+			// Mock successful response
 			metadata := map[string]types.FieldMetadata{
 				"title_txt_ja": {Description: "タイトル"},
 				"price_i":      {Description: "価格"},
@@ -74,9 +74,9 @@ func TestGetFieldCatalog(t *testing.T) {
 	defer mockServer.Close()
 
 	// --- Define Test Cases ---
-	t.Run("正常系: 全てのAPIが正常にレスポンスを返す場合", func(t *testing.T) {
-		// 目的: Solr からユニークキー、フィールド、メタデータを正常に取得し、
-		//       FieldCatalog が正しく構築されることを確認します。
+	t.Run("Success: all APIs return valid responses", func(t *testing.T) {
+		// Goal: Successfully fetch uniqueKey, fields, and metadata from Solr
+		// and confirm FieldCatalog is constructed correctly.
 		sCtx := SchemaContext{
 			HttpClient: mockServer.Client(),
 			BaseURL:    mockServer.URL,
@@ -89,10 +89,10 @@ func TestGetFieldCatalog(t *testing.T) {
 
 		fc, err := GetFieldCatalog(context.Background(), sCtx, "testcollection")
 		if err != nil {
-			t.Fatalf("予期せぬエラーが発生しました: %v", err)
+			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		// 期待される FieldCatalog の構造
+		// Expected FieldCatalog structure
 		expectedFC := &types.FieldCatalog{
 			UniqueKey: "id",
 			All: []types.SolrField{
@@ -112,26 +112,26 @@ func TestGetFieldCatalog(t *testing.T) {
 			},
 		}
 
-		// 結果の検証
+		// Validate results
 		if fc.UniqueKey != expectedFC.UniqueKey {
-			t.Errorf("UniqueKey が異なります. got=%s, want=%s", fc.UniqueKey, expectedFC.UniqueKey)
+			t.Errorf("UniqueKey mismatch. got=%s, want=%s", fc.UniqueKey, expectedFC.UniqueKey)
 		}
 		if !reflect.DeepEqual(fc.All, expectedFC.All) {
-			t.Errorf("All が異なります. got=%v, want=%v", fc.All, expectedFC.All)
+			t.Errorf("All mismatch. got=%v, want=%v", fc.All, expectedFC.All)
 		}
 		if !reflect.DeepEqual(fc.Metadata, expectedFC.Metadata) {
-			t.Errorf("Metadata が異なります. got=%v, want=%v", fc.Metadata, expectedFC.Metadata)
+			t.Errorf("Metadata mismatch. got=%v, want=%v", fc.Metadata, expectedFC.Metadata)
 		}
 	})
 
-	t.Run("正常系: キャッシュが有効な場合", func(t *testing.T) {
-		// 目的: 一度取得したデータがキャッシュされ、TTL 内であれば
-		//       再度 HTTP リクエストが発行されないことを確認します。
+	t.Run("Success: cache works within TTL", func(t *testing.T) {
+		// Goal: Verify data is cached and no new HTTP requests
+		// are made within TTL after the first fetch.
 		requestCount := 0
-		// リクエストカウンタ付きのモックサーバー
+		// Mock server with request counter
 		countingServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestCount++
-			// 正常系と同じレスポンスを返す
+			// Return the same responses as the success case
 			w.Header().Set("Content-Type", "application/json")
 			switch r.URL.Path {
 			case "/solr/testcollection/schema/uniquekey":
@@ -152,48 +152,37 @@ func TestGetFieldCatalog(t *testing.T) {
 			Cache: &types.SchemaCache{
 				ByCol:     make(map[string]*types.FieldCatalog),
 				LastFetch: make(map[string]time.Time),
-				TTL:       1 * time.Minute, // 1分間のキャッシュTTL
+				TTL:       1 * time.Minute, // cache TTL of 1 minute
 			},
 		}
 
-		// 1回目の呼び出し（キャッシュされる）
+		// First call (will be cached)
 		_, err := GetFieldCatalog(context.Background(), sCtx, "testcollection")
 		if err != nil {
-			t.Fatalf("1回目の呼び出しでエラー: %v", err)
+			t.Fatalf("First call error: %v", err)
 		}
 		if requestCount == 0 {
-			t.Fatal("1回目の呼び出しでリクエストがありませんでした")
+			t.Fatal("No request made on first call")
 		}
 		initialRequestCount := requestCount
 
-		// 2回目の呼び出し（キャッシュから返されるはず）
+		// Second call (should return from cache)
 		_, err = GetFieldCatalog(context.Background(), sCtx, "testcollection")
 		if err != nil {
-			t.Fatalf("2回目の呼び出しでエラー: %v", err)
+			t.Fatalf("Second call error: %v", err)
 		}
 
-		// リクエスト数が増えていないことを確認
+		// Confirm request count did not increase
 		if requestCount != initialRequestCount {
-			t.Errorf("キャッシュが効いていません。リクエスト数が増加しました. got=%d, want=%d", requestCount, initialRequestCount)
+			t.Errorf("Cache ineffective; request count increased. got=%d, want=%d", requestCount, initialRequestCount)
 		}
 	})
 
-	t.Run("異常系: フィールド取得APIがエラーを返す場合", func(t *testing.T) {
-		// 目的: 依存するAPIの一つがエラーを返した際に、GetFieldCatalog が
-		//       正しくエラーを伝播させることを確認します。
-		// BaseURLを上書きしてしまっているので、GetFieldCatalog内のURL生成がうまくいかない
-		// GetFieldCatalog内のURL生成ロジックを考慮し、テストを修正する必要がある
-		// ここでは簡略化のため、モックサーバーのハンドラでパスを判定する方法に戻す
-		// このテストケースは意図通りに動作しないため、より良い方法を検討する
-		// 代わりに、ハンドラ内で特定のコレクション名に対してエラーを返すようにするなどの工夫が考えられる
-		// 今回は、ハンドラは共通とし、GetFieldCatalogに渡すBaseURLで制御するのではなく、
-		// GetFieldCatalog内のURL生成ロジックを信頼し、ハンドラ側でパス全体をみて判断する
-		// しかし、現在のハンドラはパスのプレフィックスしか見ていないため、このテストは失敗する
-		// t.Skip("このテストは現在のモック実装では正しく動作しません")
-
-		// 正しいアプローチ:
-		// モックサーバーのハンドラをテストケースごとに設定するか、
-		// ハンドラがより詳細なリクエスト情報（クエリパラメータなど）を見て挙動を変えるようにする
+	t.Run("Error: field API returns error", func(t *testing.T) {
+		// Goal: Ensure GetFieldCatalog propagates errors when
+		// a dependent API returns an error.
+		// Correct approach: configure mock server per test case
+		// or vary behavior based on request details (e.g., query params).
 		errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/solr/testcollection/schema/fields" {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -217,16 +206,16 @@ func TestGetFieldCatalog(t *testing.T) {
 
 		_, err := GetFieldCatalog(context.Background(), sCtx_err, "testcollection")
 		if err == nil {
-			t.Fatal("エラーが返されるべきところで、nil が返されました")
+			t.Fatal("Expected error but got nil")
 		}
 	})
 
-	t.Run("異常系: レスポンスが不正なJSONの場合", func(t *testing.T) {
-		// 目的: APIからのレスポンスが期待したJSON形式でない場合に、
-		//       JSONのデコードエラーとして正しく処理されることを確認します。
+	t.Run("Error: invalid JSON response", func(t *testing.T) {
+		// Goal: Verify invalid JSON responses are handled
+		// as JSON decode errors.
 		badJSONServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/solr/testcollection/schema/fields" {
-				fmt.Fprintln(w, `{"fields": [`) // 不正なJSON
+				fmt.Fprintln(w, `{"fields": [`)
 			} else if r.URL.Path == "/solr/testcollection/schema/uniquekey" {
 				fmt.Fprintln(w, `{"uniqueKey":"id"}`)
 			} else {
@@ -247,20 +236,20 @@ func TestGetFieldCatalog(t *testing.T) {
 
 		_, err := GetFieldCatalog(context.Background(), sCtx, "testcollection")
 		if err == nil {
-			t.Fatal("エラーが返されるべきところで、nil が返されました")
+			t.Fatal("Expected error but got nil")
 		}
 	})
 
-	t.Run("正常系: メタデータファイルが存在しない場合", func(t *testing.T) {
-		// 目的: field_metadata.json が存在しない（APIがエラーを返す）場合でも
-		//       処理が中断せず、FieldCatalog の他の部分が正しく構築されることを確認します。
+	t.Run("Success: metadata file missing", func(t *testing.T) {
+		// Goal: Even if field_metadata.json is missing (API returns error),
+		// ensure processing continues and other parts of FieldCatalog are built.
 		noMetaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			switch r.URL.Path {
 			case "/solr/testcollection/schema/uniquekey":
 				fmt.Fprintln(w, `{"uniqueKey":"id"}`)
 			case "/solr/testcollection/schema/fields":
-				// 正常系と同じレスポンス
+				// Same response as the success case
 				fields := struct {
 					Fields []types.SolrField `json:"fields"`
 				}{
@@ -268,7 +257,7 @@ func TestGetFieldCatalog(t *testing.T) {
 				}
 				json.NewEncoder(w).Encode(fields)
 			case "/solr/testcollection/admin/file":
-				// メタデータはエラーを返す
+				// Return error for metadata
 				http.Error(w, "File Not Found", http.StatusNotFound)
 			default:
 				http.NotFound(w, r)
@@ -288,21 +277,21 @@ func TestGetFieldCatalog(t *testing.T) {
 
 		fc, err := GetFieldCatalog(context.Background(), sCtx, "testcollection")
 		if err != nil {
-			t.Fatalf("予期せぬエラーが発生しました: %v", err)
+			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		// メタデータが空であることを確認
+		// Metadata should be empty
 		if len(fc.Metadata) != 0 {
-			t.Errorf("Metadata は空であるべきです. got=%v", fc.Metadata)
+			t.Errorf("Metadata should be empty. got=%v", fc.Metadata)
 		}
-		// 他の情報は取得できていることを確認
+		// Other information should still be available
 		if fc.UniqueKey != "id" {
-			t.Errorf("UniqueKey が取得できていません. got=%s", fc.UniqueKey)
+			t.Errorf("UniqueKey not obtained. got=%s", fc.UniqueKey)
 		}
 	})
 
-	t.Run("正常系: Basic認証を使用する場合", func(t *testing.T) {
-		// 目的: User/Passが設定されている場合、Basic認証ヘッダーが正しく送信されることを確認します。
+	t.Run("Success: with Basic auth", func(t *testing.T) {
+		// Goal: When User/Pass are set, ensure Basic auth header is sent.
 		var receivedAuth string
 		authServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			receivedAuth = r.Header.Get("Authorization")
@@ -334,20 +323,20 @@ func TestGetFieldCatalog(t *testing.T) {
 
 		_, err := GetFieldCatalog(context.Background(), sCtx, "testcollection")
 		if err != nil {
-			t.Fatalf("予期せぬエラーが発生しました: %v", err)
+			t.Fatalf("Unexpected error: %v", err)
 		}
 
-		// Basic認証ヘッダーが送信されたことを確認
+		// Confirm Basic auth header was sent
 		if receivedAuth == "" {
-			t.Error("Authorization ヘッダーが送信されていません")
+			t.Error("Authorization header was not sent")
 		}
 		if len(receivedAuth) < 6 || receivedAuth[:5] != "Basic" {
-			t.Errorf("Basic認証ヘッダーの形式が正しくありません. got=%s", receivedAuth)
+			t.Errorf("Invalid Basic auth header format. got=%s", receivedAuth)
 		}
 	})
 
-	t.Run("異常系: UniqueKey取得APIがエラーを返す場合", func(t *testing.T) {
-		// 目的: uniqueKey取得時にエラーが発生した場合、GetFieldCatalogが正しくエラーを返すことを確認します。
+	t.Run("Error: uniqueKey API returns error", func(t *testing.T) {
+		// Goal: Ensure GetFieldCatalog returns error when uniqueKey retrieval fails.
 		errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path == "/solr/testcollection/schema/uniquekey" {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -369,12 +358,12 @@ func TestGetFieldCatalog(t *testing.T) {
 
 		_, err := GetFieldCatalog(context.Background(), sCtx, "testcollection")
 		if err == nil {
-			t.Fatal("エラーが返されるべきところで、nil が返されました")
+			t.Fatal("Expected error but got nil")
 		}
 	})
 
-	t.Run("異常系: HTTPリクエスト自体が失敗する場合", func(t *testing.T) {
-		// 目的: ネットワークエラーなどでHTTPリクエストが失敗した場合、適切にエラーが返されることを確認します。
+	t.Run("Error: HTTP request fails", func(t *testing.T) {
+		// Goal: Verify appropriate errors are returned on network failures.
 		sCtx := SchemaContext{
 			HttpClient: &http.Client{},
 			BaseURL:    "http://invalid-host-that-does-not-exist:9999",
@@ -387,15 +376,15 @@ func TestGetFieldCatalog(t *testing.T) {
 
 		_, err := GetFieldCatalog(context.Background(), sCtx, "testcollection")
 		if err == nil {
-			t.Fatal("エラーが返されるべきところで、nil が返されました")
+			t.Fatal("Expected error but got nil")
 		}
 	})
 
-	t.Run("正常系: コレクション名に特殊文字が含まれる場合", func(t *testing.T) {
-		// 目的: コレクション名にURL エスケープが必要な文字が含まれる場合でも正しく処理されることを確認します。
+	t.Run("Success: collection name with special characters", func(t *testing.T) {
+		// Goal: Ensure collection names requiring URL escaping are handled correctly.
 		specialServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			// URL エスケープされたコレクション名を確認（複数のパターンに対応）
+			// Verify URL-escaped collection names (support multiple patterns)
 			switch {
 			case r.URL.Path == "/solr/test%20collection/schema/uniquekey" ||
 				r.URL.Path == "/solr/test collection/schema/uniquekey":
@@ -424,16 +413,16 @@ func TestGetFieldCatalog(t *testing.T) {
 
 		fc, err := GetFieldCatalog(context.Background(), sCtx, "test collection")
 		if err != nil {
-			t.Fatalf("予期せぬエラーが発生しました: %v", err)
+			t.Fatalf("Unexpected error: %v", err)
 		}
 
 		if fc.UniqueKey != "id" {
-			t.Errorf("UniqueKey が取得できていません. got=%s", fc.UniqueKey)
+			t.Errorf("UniqueKey not obtained. got=%s", fc.UniqueKey)
 		}
 	})
 
-	t.Run("正常系: キャッシュTTLが0の場合", func(t *testing.T) {
-		// 目的: TTLが0の場合、毎回APIリクエストが発行されることを確認します。
+	t.Run("Success: cache TTL is 0", func(t *testing.T) {
+		// Goal: When TTL is 0, verify each call triggers API requests.
 		requestCount := 0
 		zeroTTLServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			requestCount++
@@ -457,26 +446,26 @@ func TestGetFieldCatalog(t *testing.T) {
 			Cache: &types.SchemaCache{
 				ByCol:     make(map[string]*types.FieldCatalog),
 				LastFetch: make(map[string]time.Time),
-				TTL:       0, // TTLを0に設定
+				TTL:       0, // set TTL to 0
 			},
 		}
 
-		// 1回目の呼び出し
+		// First call
 		_, err := GetFieldCatalog(context.Background(), sCtx, "testcollection")
 		if err != nil {
-			t.Fatalf("1回目の呼び出しでエラー: %v", err)
+			t.Fatalf("First call error: %v", err)
 		}
 		firstRequestCount := requestCount
 
-		// 2回目の呼び出し（TTLが0なので再度リクエストされるはず）
+		// Second call (TTL is 0, so another request should be made)
 		_, err = GetFieldCatalog(context.Background(), sCtx, "testcollection")
 		if err != nil {
-			t.Fatalf("2回目の呼び出しでエラー: %v", err)
+			t.Fatalf("Second call error: %v", err)
 		}
 
-		// リクエスト数が増えていることを確認
+		// Confirm request count increased
 		if requestCount <= firstRequestCount {
-			t.Errorf("TTLが0の場合、リクエストが再発行されるべきです. got=%d, want>%d", requestCount, firstRequestCount)
+			t.Errorf("With TTL=0, requests should be reissued. got=%d, want>%d", requestCount, firstRequestCount)
 		}
 	})
 }

@@ -60,8 +60,8 @@ type SchemaIn struct {
 }
 
 type SchemaOut struct {
-	SelectParams   map[string]any `json:"selectParams,omitempty"`   // 実際に実行した/selectのパラメータ
-	JSONRequest    any            `json:"jsonRequest,omitempty"`    // 実際に実行したJSONリクエストボディ
-	Response       any            `json:"response,omitempty"`       // Solrからのレスポンス
-	ExecutionNotes string         `json:"executionNotes,omitempty"` // 実行経路の説明
+	SelectParams   map[string]any `json:"selectParams,omitempty"`   // Parameters used for the executed /select request
+	JSONRequest    any            `json:"jsonRequest,omitempty"`    // Executed JSON request body
+	Response       any            `json:"response,omitempty"`       // Response returned from Solr
+	ExecutionNotes string         `json:"executionNotes,omitempty"` // Explanation of the execution path
 }

@@ -34,21 +34,21 @@ func main() {
 		logLevel.Set(slog.LevelInfo) // Default LogLevel is INFO
 	}
 
-	// カスタム属性置換関数
+	// Custom attribute replacement function
 	replaceAttr := func(groups []string, a slog.Attr) slog.Attr {
-		// 値が文字列で、改行を含んでいる場合
+		// If the value is a string and contains newlines
 		if a.Value.Kind() == slog.KindString && strings.Contains(a.Value.String(), "\n") {
 			lines := strings.Split(a.Value.String(), "\n")
-			// 複数行の文字列を slog.Group として整形する
+			// Format multi-line strings as a slog.Group
 			var groupAttrs []slog.Attr
 			for i, line := range lines {
-				// 空行はログに出さない
+				// Skip empty lines in the log
 				if strings.TrimSpace(line) != "" {
 					groupAttrs = append(groupAttrs, slog.String(fmt.Sprintf("line%02d", i+1), line))
 				}
 			}
 
-			// []slog.Attr を []any に変換する
+			// Convert []slog.Attr to []any
 			anyAttrs := make([]any, len(groupAttrs))
 			for i, attr := range groupAttrs {
 				anyAttrs[i] = attr
@@ -66,7 +66,7 @@ func main() {
 
 	logger := slog.New(slog.NewTextHandler(os.Stderr, handlerOpts))
 	slog.SetDefault(logger)
-	// --- セットアップ完了 ---
+	// --- Setup complete ---
 
 	out := flag.CommandLine.Output()
 	flag.Usage = func() {

@@ -24,6 +24,50 @@ func AddTools(mcpServer *mcp.Server, st *State) []string {
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name:        "solr.query",
 		Description: "Search documents in Solr /select query",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"collection": map[string]any{
+					"type":        "string",
+					"description": "Solr collection name",
+				},
+				"query": map[string]any{
+					"type":        "string",
+					"description": "Solr query string (default: *:*)",
+				},
+				"fq": map[string]any{
+					"type":        "array",
+					"items":       map[string]any{"type": "string"},
+					"description": "Filter queries",
+				},
+				"fl": map[string]any{
+					"type":        "array",
+					"items":       map[string]any{"type": "string"},
+					"description": "Fields to return",
+				},
+				"sort": map[string]any{
+					"type":        "string",
+					"description": "Sort criteria (e.g., 'price asc')",
+				},
+				"start": map[string]any{
+					"type":        "integer",
+					"description": "Starting offset for pagination",
+				},
+				"rows": map[string]any{
+					"type":        "integer",
+					"description": "Number of rows to return",
+				},
+				"params": map[string]any{
+					"type":        "object",
+					"description": "Additional query parameters",
+				},
+				"echoParams": map[string]any{
+					"type":        "boolean",
+					"description": "Echo all parameters in response",
+				},
+			},
+			"required": []string{"collection"},
+		},
 	}, st.toolQuery)
 	toolNames = append(toolNames, "solr.query")
 
@@ -31,6 +75,10 @@ func AddTools(mcpServer *mcp.Server, st *State) []string {
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name:        "solr.ping",
 		Description: "Check Solr cluster health (live nodes)",
+		InputSchema: map[string]any{
+			"type":       "object",
+			"properties": map[string]any{},
+		},
 	}, st.toolPing)
 	toolNames = append(toolNames, "solr.ping")
 
@@ -38,6 +86,16 @@ func AddTools(mcpServer *mcp.Server, st *State) []string {
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name:        "solr.collection.health",
 		Description: "Check specific collection health status",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"collection": map[string]any{
+					"type":        "string",
+					"description": "Solr collection name",
+				},
+			},
+			"required": []string{"collection"},
+		},
 	}, st.toolCollectionHealth)
 	toolNames = append(toolNames, "solr.collection.health")
 
@@ -45,6 +103,16 @@ func AddTools(mcpServer *mcp.Server, st *State) []string {
 	mcp.AddTool(mcpServer, &mcp.Tool{
 		Name:        "solr.schema",
 		Description: "Get Solr schema information",
+		InputSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"collection": map[string]any{
+					"type":        "string",
+					"description": "Solr collection name",
+				},
+			},
+			"required": []string{"collection"},
+		},
 	}, st.toolSchema)
 	toolNames = append(toolNames, "solr.schema")
 

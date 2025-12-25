@@ -4,9 +4,9 @@ import (
 	"testing"
 )
 
-// TestNewServerState は NewServerState 関数のテストです。
+// TestNewServerState tests the NewServerState function.
 func TestNewServerState(t *testing.T) {
-	// 目的: 環境変数が設定されている場合に、NewServerStateが正しくStateを初期化することを確認する。
+	// Goal: When environment variables are set, ensure NewServerState initializes State correctly.
 	t.Run("With environment variables", func(t *testing.T) {
 		t.Setenv("SOLR_MCP_DEFAULT_COLLECTION", "test_collection")
 
@@ -17,9 +17,9 @@ func TestNewServerState(t *testing.T) {
 		}
 	})
 
-	// 目的: 環境変数が設定されていない場合に、デフォルト値でStateが初期化されることを確認する。
+	// Goal: When environment variables are not set, ensure State initializes with defaults.
 	t.Run("Without environment variables (defaults)", func(t *testing.T) {
-		// t.Setenv() はこのサブテスト内でのみ有効なため、ここでは環境変数は未設定の状態
+		// Note: t.Setenv() applies only within a subtest; no env vars here.
 		state := NewServerState()
 
 		if state.DefaultCollection != "gettingstarted" {
