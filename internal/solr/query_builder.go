@@ -16,7 +16,8 @@ import (
 )
 
 func QuerySelect(ctx context.Context, client *solr_sdk.JSONClient, collection string, params map[string]any) (any, error) {
-	q := utils.Choose(params["q"].(string), "*:*")
+	qStr, _ := params["q"].(string)
+	q := utils.Choose(qStr, "*:*")
 	query := solr_sdk.NewQuery(solr_sdk.NewStandardQueryParser().Query(q).BuildParser()).Params(solr_sdk.M(params))
 	slog.Debug("Executing Solr eDisMax query on collection", "collection", collection, "query", query)
 	return client.Query(ctx, collection, query)
