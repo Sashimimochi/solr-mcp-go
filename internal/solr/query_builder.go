@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"solr-mcp-go/internal/utils"
 	"strconv"
 
@@ -26,7 +27,15 @@ func QuerySelect(ctx context.Context, client *solr_sdk.JSONClient, collection st
 func PostQueryJSON(ctx context.Context, httpClient *http.Client, baseURL, user, pass, collection string, body map[string]any) (map[string]any, error) {
 	u := fmt.Sprintf("%s/solr/%s/query?wt=json", baseURL, url.PathEscape(collection))
 	buf, _ := json.Marshal(body)
-	slog.Debug("POST with body", "url", u, "body", string(buf))
+
+	// Log request body only in non-production environments
+	env := os.Getenv("ENVIRONMENT")
+	if env != "prod" {
+		slog.Debug("POST query request", "url", u, "body", string(buf))
+	} else {
+		slog.Debug("POST query request", "url", u, "bodySize", len(buf))
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(buf))
 	if err != nil {
 		return nil, fmt.Errorf("create request error: %v", err)
@@ -53,7 +62,9 @@ func PostQueryJSON(ctx context.Context, httpClient *http.Client, baseURL, user, 
 	return out, nil
 }
 
-func AddFieldsForIDs(body map[string]any, idField string) {
+// SetIDOnlyField overwrites the fields array to contain only the ID field.
+// This is used when only IDs are needed in the response (e.g., for ID extraction).
+func SetIDOnlyField(body map[string]any, idField string) {
 	if idField == "" {
 		return
 	}

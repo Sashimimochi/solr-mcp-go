@@ -1,14 +1,47 @@
 package types
 
 import (
+	"sync"
 	"time"
 )
 
 // Schema related types
 type SchemaCache struct {
+	mu        sync.RWMutex
 	LastFetch map[string]time.Time
 	TTL       time.Duration
 	ByCol     map[string]*FieldCatalog
+}
+
+// Get retrieves a cached FieldCatalog if it exists and is still valid
+func (sc *SchemaCache) Get(collection string) (*FieldCatalog, bool) {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	fc, ok := sc.ByCol[collection]
+	if !ok {
+		return nil, false
+	}
+
+	lastFetch, ok := sc.LastFetch[collection]
+	if !ok {
+		return nil, false
+	}
+
+	if time.Since(lastFetch) >= sc.TTL {
+		return nil, false
+	}
+
+	return fc, true
+}
+
+// Set stores a FieldCatalog in the cache
+func (sc *SchemaCache) Set(collection string, fc *FieldCatalog) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
+	sc.ByCol[collection] = fc
+	sc.LastFetch[collection] = time.Now()
 }
 
 type FieldCatalog struct {

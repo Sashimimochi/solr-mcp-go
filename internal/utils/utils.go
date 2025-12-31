@@ -50,7 +50,7 @@ func Prioritize(names []string, prefs []string) []string {
 	seen := map[string]bool{}
 	for _, p := range prefs {
 		for _, n := range names {
-			if !seen[n] && strings.Contains(strings.ToLower(n), p) {
+			if !seen[n] && strings.Contains(strings.ToLower(n), strings.ToLower(p)) {
 				out = append(out, n)
 				seen[n] = true
 			}

@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"time"
 
 	"solr-mcp-go/internal/types"
 )
@@ -22,12 +21,11 @@ type SchemaContext struct {
 }
 
 func GetFieldCatalog(ctx context.Context, sCtx SchemaContext, collection string) (*types.FieldCatalog, error) {
-	now := time.Now()
-	if fc, ok := sCtx.Cache.ByCol[collection]; ok {
-		if now.Sub(sCtx.Cache.LastFetch[collection]) < sCtx.Cache.TTL {
-			return fc, nil
-		}
+	// Check cache with thread-safe access
+	if fc, ok := sCtx.Cache.Get(collection); ok {
+		return fc, nil
 	}
+
 	fc := &types.FieldCatalog{}
 	ukURL := fmt.Sprintf("%s/solr/%s/schema/uniquekey?wt=json", sCtx.BaseURL, url.PathEscape(collection))
 	if err := getJSON(ctx, sCtx.HttpClient, sCtx.User, sCtx.Pass, ukURL, &struct {
@@ -58,8 +56,8 @@ func GetFieldCatalog(ctx context.Context, sCtx SchemaContext, collection string)
 		slog.Warn("failed to get field metadata from Solr", "err", err)
 	}
 
-	sCtx.Cache.ByCol[collection] = fc
-	sCtx.Cache.LastFetch[collection] = now
+	// Store in cache with thread-safe access
+	sCtx.Cache.Set(collection, fc)
 	return fc, nil
 }
 
@@ -84,8 +82,12 @@ func getJSON(ctx context.Context, httpClient *http.Client, user, pass, u string,
 	}
 
 	if into != nil {
-		if err := json.NewDecoder(res.Body).Decode(into); err != nil {
-			bodyBytes, _ := io.ReadAll(res.Body)
+		// Read body into bytes first so we can reuse it on decode error
+		bodyBytes, err := io.ReadAll(res.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read response body: %v", err)
+		}
+		if err := json.Unmarshal(bodyBytes, into); err != nil {
 			return fmt.Errorf("JSON decode error: %v. Response: %s", err, string(bodyBytes))
 		}
 	} else {

@@ -95,9 +95,9 @@ func TestQuerySelect(t *testing.T) {
 	})
 }
 
-// TestAddFieldsForIDs tests the AddFieldsForIDs function.
-// Goal: Ensure the ID field is correctly added to the query body.
-func TestAddFieldsForIDs(t *testing.T) {
+// TestSetIDOnlyField tests the SetIDOnlyField function.
+// Goal: Ensure the fields array is correctly set to contain only the ID field.
+func TestSetIDOnlyField(t *testing.T) {
 	testCases := []struct {
 		name     string
 		body     map[string]any
@@ -142,7 +142,7 @@ func TestAddFieldsForIDs(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			AddFieldsForIDs(tc.body, tc.idField)
+			SetIDOnlyField(tc.body, tc.idField)
 			if !reflect.DeepEqual(tc.body, tc.expected) {
 				t.Errorf("expected %v, but got %v", tc.expected, tc.body)
 			}
