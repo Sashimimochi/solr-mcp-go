@@ -23,10 +23,10 @@ func TestGetFieldCatalog(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		// Mock Unique Key Get API from Solr
-		case "/testcollection/schema/uniquekey":
+		case "/solr/testcollection/schema/uniquekey":
 			fmt.Fprintln(w, `{"uniqueKey":"id"}`)
 		// Mock Field Information Get API from Solr
-		case "/testcollection/schema/fields":
+		case "/solr/testcollection/schema/fields":
 			// Mock invalid URL path response
 			if r.URL.Query().Get("error") == "true" {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -55,7 +55,7 @@ func TestGetFieldCatalog(t *testing.T) {
 			}
 			json.NewEncoder(w).Encode(fields)
 		// Mock Field Metadata Get API from Solr
-		case "/testcollection/admin/file":
+		case "/solr/testcollection/admin/file":
 			// Mock invalid URL path response
 			if r.URL.Query().Get("error") == "true" {
 				http.Error(w, "File Not Found", http.StatusNotFound)
@@ -134,11 +134,11 @@ func TestGetFieldCatalog(t *testing.T) {
 			// Return the same responses as the success case
 			w.Header().Set("Content-Type", "application/json")
 			switch r.URL.Path {
-			case "/testcollection/schema/uniquekey":
+			case "/solr/testcollection/schema/uniquekey":
 				fmt.Fprintln(w, `{"uniqueKey":"id"}`)
-			case "/testcollection/schema/fields":
+			case "/solr/testcollection/schema/fields":
 				fmt.Fprintln(w, `{"fields":[]}`)
-			case "/testcollection/admin/file":
+			case "/solr/testcollection/admin/file":
 				fmt.Fprintln(w, `{}`)
 			default:
 				http.NotFound(w, r)
@@ -184,9 +184,9 @@ func TestGetFieldCatalog(t *testing.T) {
 		// Correct approach: configure mock server per test case
 		// or vary behavior based on request details (e.g., query params).
 		errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/testcollection/schema/fields" {
+			if r.URL.Path == "/solr/testcollection/schema/fields" {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			} else if r.URL.Path == "/testcollection/schema/uniquekey" {
+			} else if r.URL.Path == "/solr/testcollection/schema/uniquekey" {
 				fmt.Fprintln(w, `{"uniqueKey":"id"}`)
 			} else {
 				http.NotFound(w, r)
@@ -214,9 +214,9 @@ func TestGetFieldCatalog(t *testing.T) {
 		// Goal: Verify invalid JSON responses are handled
 		// as JSON decode errors.
 		badJSONServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/testcollection/schema/fields" {
+			if r.URL.Path == "/solr/testcollection/schema/fields" {
 				fmt.Fprintln(w, `{"fields": [`)
-			} else if r.URL.Path == "/testcollection/schema/uniquekey" {
+			} else if r.URL.Path == "/solr/testcollection/schema/uniquekey" {
 				fmt.Fprintln(w, `{"uniqueKey":"id"}`)
 			} else {
 				http.NotFound(w, r)
@@ -246,9 +246,9 @@ func TestGetFieldCatalog(t *testing.T) {
 		noMetaServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			switch r.URL.Path {
-			case "/testcollection/schema/uniquekey":
+			case "/solr/testcollection/schema/uniquekey":
 				fmt.Fprintln(w, `{"uniqueKey":"id"}`)
-			case "/testcollection/schema/fields":
+			case "/solr/testcollection/schema/fields":
 				// Same response as the success case
 				fields := struct {
 					Fields []types.SolrField `json:"fields"`
@@ -256,7 +256,7 @@ func TestGetFieldCatalog(t *testing.T) {
 					Fields: []types.SolrField{{Name: "id", Type: "string"}},
 				}
 				json.NewEncoder(w).Encode(fields)
-			case "/testcollection/admin/file":
+			case "/solr/testcollection/admin/file":
 				// Return error for metadata
 				http.Error(w, "File Not Found", http.StatusNotFound)
 			default:
@@ -297,11 +297,11 @@ func TestGetFieldCatalog(t *testing.T) {
 			receivedAuth = r.Header.Get("Authorization")
 			w.Header().Set("Content-Type", "application/json")
 			switch r.URL.Path {
-			case "/testcollection/schema/uniquekey":
+			case "/solr/testcollection/schema/uniquekey":
 				fmt.Fprintln(w, `{"uniqueKey":"id"}`)
-			case "/testcollection/schema/fields":
+			case "/solr/testcollection/schema/fields":
 				fmt.Fprintln(w, `{"fields":[]}`)
-			case "/testcollection/admin/file":
+			case "/solr/testcollection/admin/file":
 				fmt.Fprintln(w, `{}`)
 			default:
 				http.NotFound(w, r)
@@ -338,7 +338,7 @@ func TestGetFieldCatalog(t *testing.T) {
 	t.Run("Error: uniqueKey API returns error", func(t *testing.T) {
 		// Goal: Ensure GetFieldCatalog returns error when uniqueKey retrieval fails.
 		errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/testcollection/schema/uniquekey" {
+			if r.URL.Path == "/solr/testcollection/schema/uniquekey" {
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			} else {
 				http.NotFound(w, r)
@@ -428,11 +428,11 @@ func TestGetFieldCatalog(t *testing.T) {
 			requestCount++
 			w.Header().Set("Content-Type", "application/json")
 			switch r.URL.Path {
-			case "/testcollection/schema/uniquekey":
+			case "/solr/testcollection/schema/uniquekey":
 				fmt.Fprintln(w, `{"uniqueKey":"id"}`)
-			case "/testcollection/schema/fields":
+			case "/solr/testcollection/schema/fields":
 				fmt.Fprintln(w, `{"fields":[]}`)
-			case "/testcollection/admin/file":
+			case "/solr/testcollection/admin/file":
 				fmt.Fprintln(w, `{}`)
 			default:
 				http.NotFound(w, r)
