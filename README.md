@@ -29,14 +29,48 @@
 
 ## Requirements
 
-*   Go (1.24 or later)
+*   Go (1.24 or later) - for building from source
+*   Docker (optional) - for running with Docker
 *   A running Apache Solr instance
+
+## Quick Start with Docker
+
+The fastest way to get started is using Docker:
+
+```sh
+# Pull the image from DockerHub
+docker pull 343mochi/solr-mcp-go:latest
+
+# Run the container
+docker run -d \
+  --name solr-mcp-go \
+  -p 9000:9000 \
+  -e SOLR_MCP_SOLR_URL=http://your-solr-host:8983 \
+  -e SOLR_MCP_DEFAULT_COLLECTION=your_collection \
+  343mochi/solr-mcp-go:latest \
+  -host 0.0.0.0 -port 9000
+```
+
+Or use docker-compose for a complete setup with Solr:
+
+```sh
+# Clone the repository
+git clone https://github.com/Sashimimochi/solr-mcp-go.git
+cd solr-mcp-go
+
+# Start both Solr and solr-mcp-go
+docker-compose up -d
+```
+
+This will start:
+- Solr on port 8983
+- solr-mcp-go on port 9000
 
 ## Setup
 
 1.  Clone the repository:
     ```sh
-    git clone https://github.com/yourusername/solr-mcp-go.git
+    git clone https://github.com/Sashimimochi/solr-mcp-go.git
     cd solr-mcp-go
     ```
 
@@ -345,6 +379,74 @@ The server uses structured logging with configurable log levels:
 - `INFO`: Normal operation logs (default)
 - `WARN`: Warning messages
 - `ERROR`: Error conditions
+
+## Docker Deployment
+
+### Building the Docker Image
+
+Build the image locally:
+
+```sh
+# Build with default tag
+docker build -t solr-mcp-go .
+
+# Build with specific version
+docker build -t 343mochi/solr-mcp-go:v1.0.0 .
+```
+
+### Publishing to DockerHub
+
+1. **Login to DockerHub:**
+   ```sh
+   docker login
+   ```
+
+2. **Edit the build script:**
+   Open [docker-build-push.sh](docker-build-push.sh) and replace `343mochi` with your DockerHub username:
+   ```bash
+   DOCKER_USERNAME="${DOCKER_USERNAME:-343mochi}"  # Replace with your username
+   ```
+
+3. **Run the build and push script:**
+   ```sh
+   # Build and push with version tag
+   ./docker-build-push.sh v1.0.0
+
+   # Build and push as latest
+   ./docker-build-push.sh latest
+   ```
+
+The script will:
+- Build the Docker image
+- Tag it with the specified version and `latest`
+- Push to DockerHub (with confirmation prompt)
+
+### Environment Variables for Docker
+
+When running the Docker container, configure these environment variables:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SOLR_MCP_SOLR_URL` | Solr server URL | `http://localhost:8983` |
+| `SOLR_MCP_DEFAULT_COLLECTION` | Default collection | `gettingstarted` |
+| `SOLR_BASIC_USER` | Solr basic auth username | - |
+| `SOLR_BASIC_PASS` | Solr basic auth password | - |
+| `LOG_LEVEL` | Log level (DEBUG/INFO/WARN/ERROR) | `INFO` |
+
+### Docker Compose
+
+The included [docker-compose.yml](docker-compose.yml) provides a complete test environment with Solr and solr-mcp-go:
+
+```sh
+# Start services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f solr-mcp-go
+
+# Stop services
+docker-compose down
+```
 
 Set the log level via the `LOG_LEVEL` environment variable.
 

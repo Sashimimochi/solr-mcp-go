@@ -19,8 +19,13 @@ import (
 func QuerySelect(ctx context.Context, client *solr_sdk.JSONClient, collection string, params map[string]any) (any, error) {
 	qStr, _ := params["q"].(string)
 	q := utils.Choose(qStr, "*:*")
-	query := solr_sdk.NewQuery(solr_sdk.NewStandardQueryParser().Query(q).BuildParser()).Params(solr_sdk.M(params))
-	slog.Debug("Executing Solr eDisMax query on collection", "collection", collection, "query", query)
+	// Use simple query without parser wrapper to avoid {!lucene v=...} syntax issues
+	// This allows complex queries with parentheses and multiple operators to work correctly
+	query := solr_sdk.NewQuery(q)
+	if len(params) > 0 {
+		query = query.Params(solr_sdk.M(params))
+	}
+	slog.Debug("Executing Solr query on collection", "collection", collection, "query", query)
 	return client.Query(ctx, collection, query)
 }
 

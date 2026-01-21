@@ -129,8 +129,9 @@ func (st *State) toolQuery(ctx context.Context, _ *mcp.CallToolRequest, in types
 		qString = "*:*"
 	}
 
-	parser := solr_sdk.NewStandardQueryParser().Query(qString).BuildParser()
-	query := solr_sdk.NewQuery(parser)
+	// Use simple query without parser wrapper to avoid {!lucene v=...} syntax issues
+	// This allows complex queries with parentheses and multiple operators to work correctly
+	query := solr_sdk.NewQuery(qString)
 	if len(in.Fields) > 0 {
 		query = query.Fields(in.Fields...)
 	}

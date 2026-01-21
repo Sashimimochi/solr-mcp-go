@@ -1,0 +1,73 @@
+# Docker Compose configuration for solr-mcp-go development and testing
+#
+# This setup provides:
+# - Apache Solr 9 with a test collection
+# - solr-mcp-go MCP server connected to Solr
+#
+# Usage:
+#   docker-compose up -d     # Start services in background
+#   docker-compose logs -f   # View logs
+#   docker-compose down      # Stop and remove containers
+
+services:
+  # Apache Solr service (for testing)
+  solr:
+    image: solr:9
+    container_name: solr-test
+    ports:
+      - "8983:8983" # Solr Admin UI and API
+    environment:
+      - SOLR_HEAP=512m # Java heap size for Solr
+    volumes:
+      - solr_data:/var/solr # Persist Solr data
+    command:
+      - solr-precreate
+      - test_collection # Create a collection named 'test_collection' on startup
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl -f http://localhost:8983/solr/test_collection/admin/ping || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # solr-mcp-go MCP server
+  solr-mcp-go:
+    # For local development: build from source
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # For production: use published image from DockerHub
+    # image: 343mochi/solr-mcp-go:latest
+
+    container_name: solr-mcp-go
+    ports:
+      - "9000:9000" # MCP server HTTP port
+
+    # Environment variables for configuration
+    environment:
+      # Required: Solr connection URL
+      - SOLR_MCP_SOLR_URL=http://solr:8983/solr
+
+      # Optional: Default collection to use
+      - SOLR_MCP_DEFAULT_COLLECTION=test_collection
+
+      # Optional: Logging level (DEBUG, INFO, WARN, ERROR)
+      - LOG_LEVEL=INFO
+
+      # Optional: Solr Basic Authentication (uncomment if needed)
+      # - SOLR_BASIC_USER=your_username
+      # - SOLR_BASIC_PASS=your_password
+
+    depends_on:
+      solr:
+        condition: service_healthy # Wait for Solr to be healthy
+
+    # Command line arguments for the server
+    # Format: -host <hostname> -port <port>
+    command: ["-host", "0.0.0.0", "-port", "9000"]
+
+volumes:
+  solr_data:
