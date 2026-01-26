@@ -1,5 +1,8 @@
 # solr-mcp-go
 
+[![Docker Hub](https://img.shields.io/docker/v/343mochi/solr-mcp-go?label=Docker%20Hub&logo=docker)](https://hub.docker.com/r/343mochi/solr-mcp-go)
+[![Docker Pulls](https://img.shields.io/docker/pulls/343mochi/solr-mcp-go)](https://hub.docker.com/r/343mochi/solr-mcp-go)
+
 `solr-mcp-go` is a Model Context Protocol (MCP) server that provides Apache Solr access through standardized MCP tools. It enables AI assistants and other MCP clients to query, monitor, and interact with Solr collections.
 
 ## Features
@@ -35,10 +38,12 @@
 
 ## Quick Start with Docker
 
-The fastest way to get started is using Docker:
+The fastest way to get started is using the pre-built Docker image from [Docker Hub](https://hub.docker.com/r/343mochi/solr-mcp-go):
+
+### Using Docker Run
 
 ```sh
-# Pull the image from DockerHub
+# Pull the latest image from Docker Hub
 docker pull 343mochi/solr-mcp-go:latest
 
 # Run the container
@@ -51,7 +56,9 @@ docker run -d \
   -host 0.0.0.0 -port 9000
 ```
 
-Or use docker-compose for a complete setup with Solr:
+### Using Docker Compose
+
+For a complete setup with Solr included, use docker-compose:
 
 ```sh
 # Clone the repository
@@ -65,6 +72,13 @@ docker-compose up -d
 This will start:
 - Solr on port 8983
 - solr-mcp-go on port 9000
+
+### Available Docker Images
+
+Pre-built images are available on Docker Hub at [343mochi/solr-mcp-go](https://hub.docker.com/r/343mochi/solr-mcp-go):
+
+- `343mochi/solr-mcp-go:latest` - Latest stable version
+- `343mochi/solr-mcp-go:v1.0.0` - Specific version tags (e.g., v1.0.0, v1.1.0)
 
 ## Setup
 
