@@ -78,7 +78,7 @@ This will start:
 Pre-built images are available on Docker Hub at [343mochi/solr-mcp-go](https://hub.docker.com/r/343mochi/solr-mcp-go):
 
 - `343mochi/solr-mcp-go:latest` - Latest stable version
-- `343mochi/solr-mcp-go:v1.x.x` - Specific version tags
+- `343mochi/solr-mcp-go:v1.0.0` - Specific version tags (e.g., v1.0.0, v1.1.0)
 
 ## Setup
 
